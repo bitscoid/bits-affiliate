@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bits-affiliate"
+dynamic = ["version"]
+description = "Foto produk -> storyboard Gemini -> video Google Flow 9:16"
+readme = "SKILL.md"
+requires-python = ">=3.10"
+license = { text = "Proprietary" }
+dependencies = ["websockets>=12"]
+
+[project.scripts]
+bits-affiliate = "bits_affiliate.pipeline:main"
+bits-credits = "bits_affiliate.check_credits:main"
+bits-login = "bits_affiliate.login_bench:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6", "flake8>=7"]
+
+[tool.setuptools]
+packages = ["bits_affiliate"]
+
+[tool.setuptools.dynamic]
+version = { attr = "bits_affiliate.__version__" }
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["bits_affiliate"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
