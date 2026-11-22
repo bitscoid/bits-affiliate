@@ -322,6 +322,14 @@ def main():
                 downloads_dir=DL_DIR,
             )
             break
+        except flow_stage.FlowSetupError as e:
+            gagal.append((acc, str(e)))
+            print(
+                f"[flow-setup] {acc}: {e} — coba akun lain (belum ada kredit terbakar)",
+                flush=True,
+            )
+            attempt = kandidat_berikutnya()
+            continue
         except SystemExit as e:
             msg = str(e)
             if "kredit" in msg.lower():

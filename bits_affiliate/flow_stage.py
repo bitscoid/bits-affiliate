@@ -29,6 +29,14 @@ COST = 48
 STEP = [0]
 
 
+class FlowSetupError(SystemExit):
+    """Gagal langkah Flow SEBELUM generate — aman untuk rotasi akun lain.
+
+    Setelah generate (48 kredit hangus), kegagalan render/unduh TIDAK boleh
+    memicu rotasi: akun lain berarti membakar 48 kredit lagi.
+    """
+
+
 def log(msg):
     """Progress goes to stderr so piping stdout through tail still shows it."""
     STEP[0] += 1
@@ -87,7 +95,7 @@ async def _click(c, label, menu=False):
     js = MENU_JS if menu else TOGGLE_JS
     r = json.loads(await c.eval(js % json.dumps(_aliases(label))))
     if not r.get("ok"):
-        raise SystemExit(f"tidak bisa klik {label!r}; terlihat: {r.get('avail')}")
+        raise FlowSetupError(f"tidak bisa klik {label!r}; terlihat: {r.get('avail')}")
     await asyncio.sleep(2)
     return r
 
@@ -123,7 +131,7 @@ async def _new_project(c):
     await c.goto(APP, wait=12)
     loc = await c.eval("location.href") or ""
     if "/about" in loc or "/?pli=" in loc:
-        raise SystemExit(
+        raise FlowSetupError(
             "sesi Flow untuk akun ini logout. Jalankan: bits-login <email>"
         )
     await _dismiss(c)
@@ -139,28 +147,36 @@ async def _new_project(c):
     })()
     """)
     if not r:
-        raise SystemExit("tombol project baru tidak ditemukan")
+        raise FlowSetupError("tombol project baru tidak ditemukan")
     await asyncio.sleep(14)
     url = await c.eval("location.href") or ""
     if "/project/" not in url:
-        raise SystemExit(f"project baru tidak terbuka: {url}")
+        raise FlowSetupError(f"project baru tidak terbuka: {url}")
     return url
 
 
 async def _open_settings(c):
     await _dismiss(c)
-    r = await c.eval(r"""
-    (() => {
-      const b = document.querySelector('.settings-trigger-button')
-             || [...document.querySelectorAll('button')].find((e) =>
-                  /^(🍌\s*)?(Nano Banana|Omni|Veo)/.test((e.innerText || '').trim()));
-      if (!b) return null;
-      b.click();
-      return (b.innerText || '').replace(/\s+/g, ' ').trim();
-    })()
-    """)
+    r = None
+    # tombol setelan bisa muncul telat setelah project baru dimuat;
+    # cek sekali jalan pernah melewatkan halaman yang masih meload
+    for _ in range(8):
+        r = await c.eval(r"""
+        (() => {
+          const b = document.querySelector('.settings-trigger-button')
+                 || [...document.querySelectorAll('button')].find((e) =>
+                      /^(🍌\s*)?(Nano Banana|Omni|Veo)/
+                        .test((e.innerText || '').trim()));
+          if (!b) return null;
+          b.click();
+          return (b.innerText || '').replace(/\s+/g, ' ').trim();
+        })()
+        """)
+        if r:
+            break
+        await asyncio.sleep(2)
     if not r:
-        raise SystemExit("tombol setelan tidak ditemukan")
+        raise FlowSetupError("tombol setelan tidak ditemukan")
     await asyncio.sleep(3)
     return r
 
@@ -183,7 +199,7 @@ async def _set_duration(c):
         % (SECONDS - 3)
     )
     if not ok:
-        raise SystemExit("slider durasi tidak ditemukan (mode Video?)")
+        raise FlowSetupError("slider durasi tidak ditemukan (mode Video?)")
     await asyncio.sleep(2)
 
 
@@ -247,7 +263,7 @@ async def _upload(c, image_path):
     await c.cmd("Page.setInterceptFileChooserDialog", enabled=True)
     box = await _ingredients_button_box(c)
     if not box:
-        raise SystemExit("tombol bahan tidak ditemukan")
+        raise FlowSetupError("tombol bahan tidak ditemukan")
     await c.tap(*box)
     # panel library lambat, dan tap bisa salah kirim (menutup panel yang
     # terlanjur terbuka, mis. setelah panel setelan) -> tunggu .upload-text
@@ -262,7 +278,7 @@ async def _upload(c, image_path):
         if box:
             await c.tap(*box)
     if ok != "yes":
-        raise SystemExit("panel bahan tidak menampilkan Upload media")
+        raise FlowSetupError("panel bahan tidak menampilkan Upload media")
     r = await c.eval(r"""
     (() => {
       // the label sits in <span class="upload-text">; click its clickable parent
@@ -278,10 +294,10 @@ async def _upload(c, image_path):
     })()
     """)
     if r != "clicked":
-        raise SystemExit("menu Upload media tidak ditemukan")
+        raise FlowSetupError("menu Upload media tidak ditemukan")
     ev = await c.event("Page.fileChooserOpened", timeout=20)
     if not ev:
-        raise SystemExit("file chooser tidak terbuka")
+        raise FlowSetupError("file chooser tidak terbuka")
     await c.cmd(
         "DOM.setFileInputFiles",
         files=[os.path.abspath(image_path)],
@@ -309,7 +325,7 @@ async def _attach(c):
     })()
     """)
     if r == "none":
-        raise SystemExit("aset tidak bisa ditempel ke prompt")
+        raise FlowSetupError("aset tidak bisa ditempel ke prompt")
     await asyncio.sleep(3)
     chips = await c.eval(
         "document.querySelectorAll('flow-ingredient-chip,"
@@ -339,7 +355,7 @@ async def _type_prompt(c, text):
     })()
     """)
     if not box:
-        raise SystemExit("kotak prompt Flow tidak ditemukan")
+        raise FlowSetupError("kotak prompt Flow tidak ditemukan")
     await c.tap(box["x"], box["y"])
     await asyncio.sleep(1)
     await c.eval(r"""
@@ -395,9 +411,11 @@ async def _generate(c, cost=""):
             f"({st['warning']}; panel: {cost or 'biaya tidak terbaca'})"
         )
     if not st["startFound"]:
-        raise SystemExit("tombol Mulai pembuatan tidak muncul (prompt kosong?)")
+        raise FlowSetupError("tombol Mulai pembuatan tidak muncul (prompt kosong?)")
     if st["startDisabled"]:
-        raise SystemExit("tombol Mulai pembuatan tidak aktif (prompt belum terisi?)")
+        raise FlowSetupError(
+            "tombol Mulai pembuatan tidak aktif (prompt belum terisi?)"
+        )
     r = await c.eval(r"""
     (() => {
       const b = [...document.querySelectorAll('button')].find((e) =>
@@ -408,7 +426,7 @@ async def _generate(c, cost=""):
     })()
     """)
     if r != "clicked":
-        raise SystemExit(f"tidak bisa mulai pembuatan: {r}")
+        raise FlowSetupError(f"tidak bisa mulai pembuatan: {r}")
 
 
 async def _wait_render(c, timeout=900, interval=15):
@@ -708,7 +726,7 @@ def run_stage(
         project = await r.call(lambda conn: _new_project(conn), attempts=4)
         settings = await r.call(lambda conn: _apply_settings(conn), attempts=4)
         if str(SECONDS) not in settings["chip"]:
-            raise SystemExit(
+            raise FlowSetupError(
                 f"durasi tidak tersimpan: chip berbunyi {settings['chip']!r}, "
                 f"mau {SECONDS} dtk"
             )
