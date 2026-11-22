@@ -305,16 +305,22 @@ async def _apply_settings(c, seconds=SECONDS):
 
 
 async def _ingredients_button_box(c):
-    return await c.eval(r"""
-    (() => {
-      const b = [...document.querySelectorAll('button')].find((e) =>
-        /add ingredients|tambahkan bahan|bahan ke kotak/i
-          .test(e.getAttribute('aria-label') || ''));
-      if (!b) return null;
-      const r = b.getBoundingClientRect();
-      return [Math.round(r.x + r.width / 2), Math.round(r.y + r.height / 2)];
-    })()
-    """)
+    """Posisi tombol bahan; dipolling — composer bisa terakhir render."""
+    for _ in range(10):
+        box = await c.eval(r"""
+        (() => {
+          const b = [...document.querySelectorAll('button')].find((e) =>
+            /add ingredients|tambahkan bahan|bahan ke kotak/i
+              .test(e.getAttribute('aria-label') || ''));
+          if (!b) return null;
+          const r = b.getBoundingClientRect();
+          return [Math.round(r.x + r.width / 2), Math.round(r.y + r.height / 2)];
+        })()
+        """)
+        if box:
+            return box
+        await asyncio.sleep(1)
+    return None
 
 
 async def _upload(c, image_path):
@@ -361,10 +367,19 @@ async def _upload(c, image_path):
         files=[os.path.abspath(image_path)],
         backendNodeId=ev["backendNodeId"],
     )
-    # poll thumbnail alih-alih sleep tetap 12 dtk: upload biasanya 2-4 dtk
-    for _ in range(12):
+    # tunggu upload BENAR-BENAR selesai: thumbnail muncul sejak upload mulai,
+    # tapi klik sebelum img-nya termuat = no-op (regresi terjadi di sini)
+    for _ in range(20):
         await asyncio.sleep(1)
-        if await c.eval("document.querySelectorAll('.asset-thumbnail').length"):
+        siap = await c.eval(r"""
+        (() => {
+          const th = document.querySelector('.asset-thumbnail');
+          if (!th) return false;
+          const img = th.tagName === 'IMG' ? th : th.querySelector('img');
+          return !!img && img.complete && img.naturalWidth > 0;
+        })()
+        """)
+        if siap:
             break
 
 
@@ -400,6 +415,21 @@ async def _attach(c):
                 await asyncio.sleep(2)
                 if await c.eval("document.querySelectorAll('.asset-thumbnail').length"):
                     break
+    # tunggu thumbnail siap diklik: upload selesai (img termuat), bukan
+    # sekadar tile placeholder yang baru terdaftar
+    siap = False
+    for _ in range(15):
+        siap = await c.eval(r"""
+        (() => {
+          const th = document.querySelector('.asset-thumbnail');
+          if (!th) return false;
+          const img = th.tagName === 'IMG' ? th : th.querySelector('img');
+          return !!img && img.complete && img.naturalWidth > 0;
+        })()
+        """)
+        if siap:
+            break
+        await asyncio.sleep(1)
     r = await c.eval(r"""
     (() => {
       const th = document.querySelector('.asset-thumbnail, img.thumbnail');
@@ -411,12 +441,24 @@ async def _attach(c):
     """)
     if r != "clicked":
         raise FlowSetupError("aset tidak bisa ditempel ke prompt")
+    # chip bisa telat muncul bila aset masih diproses -> klik ulang sesekali
+    klik_js = r"""
+    (() => {
+      const th = document.querySelector('.asset-thumbnail, img.thumbnail');
+      if (!th) return 'no asset';
+      const t = th.closest('button,[role="button"],.upload-item') || th;
+      t.click();
+      return 'clicked';
+    })()
+    """
     chips = 0
-    for _ in range(6):
-        await asyncio.sleep(2)
+    for i in range(10):
+        await asyncio.sleep(3)
         chips = await _chip_bar_count(c)
         if chips >= 1:
             break
+        if i in (2, 5):
+            await c.eval(klik_js)
     # tutup panel dengan Escape (Cancel menghapus chip di varian UI tertentu)
     await _press_escape(c)
     await asyncio.sleep(2)
