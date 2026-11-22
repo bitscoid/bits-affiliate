@@ -18,11 +18,13 @@ memakai class/aria-label yang stabil; teks label bisa berubah bahasa.
 | Tombol upload | `button` dengan aria-label cocok `/upload (& )?alat\|upload .*(and )?tools?/i` (label `Upload & alat` / `Upload files and tools`) |
 | Input file | `input[type=file][accept*="image"]` |
 | Kirim | `button` aria-label cocok `/kirim pesan\|send message/i` |
-| Menu upload | `Upload file`, `Tambahkan dari Drive`, `Upload lainnya`, `Buat Video`, `Alat lainnya` (item render lambat — dipolling 5×1 dtk). Item `Buat gambar / Create images` **tidak dipakai pipeline** |
+| Menu upload | `Upload file`, `Tambahkan dari Drive`, `Upload lainnya`, `Buat Video`, `Alat lainnya`. Setelah menu diklik, `input[type=file]` muncul telat — dipolling 15×1 dtk |
 
 **Penting:** `input[type=file]` **tidak ada** di DOM sampai menu upload diklik.
 Jumlah dan urutan input tidak diandalkan — pilih yang `accept`-nya memuat
-`image`.
+`image`. Item `Buat gambar / Create images` ada di menu ini tetapi **sengaja
+tidak dipakai pipeline**: di lapangan memicu balasan teks-saja lebih sering
+daripada memperbaiki.
 
 Alurnya: klik menu → `DOM.getDocument(depth=-1, pierce=True)` →
 `DOM.querySelector('input[type=file][accept*="image"]')` → `DOM.setFileInputFiles`.
