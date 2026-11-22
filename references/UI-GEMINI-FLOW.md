@@ -118,7 +118,7 @@ membuang chip yang baru menempel.
 
 | Keadaan | Penanda |
 |---|---|
-| Sedang render | polling thumbnail tiap 8 dtk; logout dideteksi dari URL `/about` atau teks `Buat/Create with Google Flow` |
+| Sedang render | polling thumbnail tiap 4 dtk; logout dideteksi dari URL `/about` atau teks `Buat/Create with Google Flow` |
 | Selesai | `img` dengan `/asb/` di `src`, `naturalHeight > naturalWidth` (9:16), **di dalam container tile** — chip storyboard di prompt bar juga `/asb/` dan tidak boleh ikut terhitung |
 | Unduh | klik tombol `⋮ More options / Opsi lainnya` di tile → item `Download / Unduh` → menu kualitas `720p` (regex `^\s*720p`, fallback `Ukuran asli / Original size`) → tunggu file >100 KB dengan ukuran stabil 2 polling → ambil terbesar. Tidak ada jalur editor — tile click hanya membuka preview overlay |
 

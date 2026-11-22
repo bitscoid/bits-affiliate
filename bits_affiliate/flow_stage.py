@@ -178,8 +178,13 @@ async def _new_project(c):
     """)
     if not r:
         raise FlowSetupError("tombol project baru tidak ditemukan")
-    await asyncio.sleep(14)
-    url = await c.eval("location.href") or ""
+    # poll URL alih-alih sleep tetap 14 dtk: project biasanya terbuka < 6 dtk
+    url = ""
+    for _ in range(15):
+        await asyncio.sleep(1)
+        url = await c.eval("location.href") or ""
+        if "/project/" in url:
+            break
     if "/project/" not in url:
         raise FlowSetupError(f"project baru tidak terbuka: {url}")
     return url
@@ -356,7 +361,11 @@ async def _upload(c, image_path):
         files=[os.path.abspath(image_path)],
         backendNodeId=ev["backendNodeId"],
     )
-    await asyncio.sleep(12)
+    # poll thumbnail alih-alih sleep tetap 12 dtk: upload biasanya 2-4 dtk
+    for _ in range(12):
+        await asyncio.sleep(1)
+        if await c.eval("document.querySelectorAll('.asset-thumbnail').length"):
+            break
 
 
 CHIP_BAR = "'.prompt-ingredient-bar flow-ingredient-chip'"
@@ -519,7 +528,7 @@ async def _press_escape(c):
         )
 
 
-async def _wait_render(c, timeout=900, interval=8):
+async def _wait_render(c, timeout=900, interval=4):
     """Poll the project page until the generated 9:16 clip thumbnail appears.
 
     The clip's thumbnail is an ``/asb/`` image taller than wide that lives
@@ -786,7 +795,7 @@ def run_stage(
 
         log("klik Mulai pembuatan")
         await r.call(lambda conn: _generate(conn, settings.get("cost", "")), attempts=4)
-        log(f"menunggu render selesai (polling tiap 8 dtk, maks {timeout} dtk)")
+        log(f"menunggu render selesai (polling tiap 4 dtk, maks {timeout} dtk)")
 
         async def wait(conn):
             return await _wait_render(conn, timeout=timeout)

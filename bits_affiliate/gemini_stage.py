@@ -32,7 +32,8 @@ APP = "https://gemini.google.com/app"  # terbukti bisa generate gambar
 COMPOSER_WAIT = 18  # dtk: composer siap setelah navigasi
 FILE_INPUT_WAIT = 15  # dtk: input[type=file] muncul setelah menu diklik
 PREVIEW_WAIT = 60  # dtk: thumbnail blob muncul (30 x 2)
-REPLY_POLL = 10  # dtk: interval cek balasan
+REPLY_POLL = 10  # dtk: interval cek balasan saat masih 'menulis'
+QUIET_POLL = 3  # dtk: interval setelah Stop hilang (konfirmasi lebih cepat)
 REPLY_QUIET = 4  # putaran stabil sebelum dianggap selesai
 DOWNLOAD_WAIT = 80  # dtk: file storyboard selesai ditulis (40 x 2)
 STALL_ROUNDS = 36  # putaran diam SAAT 'menulis' -> macet (6 mnt: Gemini bisa
@@ -280,9 +281,10 @@ async def _wait_reply(c, timeout=600, quiet_rounds=REPLY_QUIET):
     peak = 0
     stable = 0
     stalled = 0
+    jeda = REPLY_POLL  # adaptif: 10 dtk saat menulis, 3 dtk setelah Stop hilang
     while elapsed < timeout:
-        await asyncio.sleep(REPLY_POLL)
-        elapsed += REPLY_POLL
+        await asyncio.sleep(jeda)
+        elapsed += jeda
         state = await _reply_state(c)
         if state is None:
             print(
@@ -336,6 +338,9 @@ async def _wait_reply(c, timeout=600, quiet_rounds=REPLY_QUIET):
         )
         if not state["busy"] and stable >= quiet_rounds:
             return True
+        # Stop sudah hilang -> konfirmasi pakai poll pendek, bukan 10 dtk
+        if not state["busy"]:
+            jeda = QUIET_POLL
     raise SystemExit("balasan Gemini tidak selesai dalam batas waktu")
 
 

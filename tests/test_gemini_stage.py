@@ -254,10 +254,13 @@ def _wait_with(states, timeout=600):
     c.eval = fake_eval
     asli = gs.REPLY_POLL
     gs.REPLY_POLL = 0  # jangan benar-benar tidur
+    asli_quiet = gs.QUIET_POLL
+    gs.QUIET_POLL = 0
     try:
         return asyncio.run(gs._wait_reply(c, timeout=timeout))
     finally:
         gs.REPLY_POLL = asli
+        gs.QUIET_POLL = asli_quiet
 
 
 def test_wait_reply_returns_when_stable():
