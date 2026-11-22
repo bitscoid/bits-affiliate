@@ -84,7 +84,7 @@ bukan seluruh teks chip.
 
 Alias terpusat di `ALIASES` hanya untuk `Ingredients` (`Bahan`), `Upload media`
 (`Unggah media`), dan `Start` (`Mulai pembuatan` / `Start generation` / `Mulai`).
-Label lain dicocokkan inline ID+EN (regex `…|…`), mis. `Download media|Unduh media`.
+Label lain dicocokkan inline ID+EN (regex `…|…`), mis. `Buat dengan|Create with`.
 Aspect, resolusi, `x1`, dan model diklik dengan label persis.
 
 ### Composer
@@ -115,10 +115,9 @@ untuk menjadikannya bahan. Panel ditutup dengan `Cancel`/`Batal`/`Tutup`/`Close`
 
 | Keadaan | Penanda |
 |---|---|
-| Sedang render | polling thumbnail tiap 15 dtk (tidak membaca teks `generating`); logout dideteksi dari URL `/about` atau teks `Buat/Create with Google Flow` |
-| Selesai | `img` dengan `/asb/` di `src` **dan** `naturalHeight > naturalWidth` (9:16) |
-| Buka editor | klik thumbnail → `/edit/<clip-id>`; fallback buka `Semua media` / `All media` |
-| Unduh | `Download media` / `Unduh media` → menu kualitas → `720p` (fallback `Ukuran asli` / `Original size`) → tunggu file >100 KB dengan ukuran stabil 2 polling → ambil terbesar |
+| Sedang render | polling thumbnail tiap 8 dtk; logout dideteksi dari URL `/about` atau teks `Buat/Create with Google Flow` |
+| Selesai | `img` dengan `/asb/` di `src`, `naturalHeight > naturalWidth` (9:16), **di dalam container tile** — chip storyboard di prompt bar juga `/asb/` dan tidak boleh ikut terhitung |
+| Unduh | klik tombol `⋮ More options / Opsi lainnya` di tile → item `Download / Unduh` → menu kualitas `720p` (regex `^\s*720p`, fallback `Ukuran asli / Original size`) → tunggu file >100 KB dengan ukuran stabil 2 polling → ambil terbesar. Tidak ada jalur editor — tile click hanya membuka preview overlay |
 
 Unduhan **bukan** `fetch(video.src)`: Flow menulis file sendiri ke folder
 download profil, script menyalin file terbesar yang sudah selesai. Menu 1080p

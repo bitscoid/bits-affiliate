@@ -62,7 +62,7 @@ def test_flow_labels_bilingual():
         ("unggah media", "upload media"),
         ("tambahkan bahan", "add ingredients"),
         ("mulai pembuatan", "start generation"),
-        ("unduh media", "download media"),
+        ("opsi lainnya", "more options"),
         ("ukuran asli", "original size"),
         ("rangkaian model", "model series"),
         ("Buat dengan", "Create with"),  # penanda logout saat render
