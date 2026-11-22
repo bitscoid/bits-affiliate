@@ -209,6 +209,7 @@ All tests run without Chrome:
 
 ```bash
 python3 tests/test_check_credits.py   # ID/EN parsers + CLI contract
+python3 tests/test_flow_duration.py   # adaptive duration: pick/parse/template
 python3 tests/test_gemini_stage.py    # storyboard grab, waits, retries
 python3 tests/test_login_bench.py     # --add/--done/--check behavior
 python3 tests/test_ui_labels.py       # every UI label exists in ID AND EN
