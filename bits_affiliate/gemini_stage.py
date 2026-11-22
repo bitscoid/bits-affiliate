@@ -507,9 +507,15 @@ async def _grab_image(c, out_path, downloads_dir=None):
             await c.eval("(document.body && document.body.innerText || '').slice(-400)")
             or ""
         ).strip()
-        raise ReplyIncomplete(
+        pesan = (
             "Gemini tidak menghasilkan gambar storyboard. Ekor balasan: " + ekor[-300:]
         )
+        if re.search(r"image generation is unavailable", ekor, re.I):
+            pesan += (
+                " — kemungkinan kuota gambar harian akun ini habis; "
+                "pakai akun lain atau coba lagi besok."
+            )
+        raise ReplyIncomplete(pesan)
 
     downloads_dir = downloads_dir or os.path.join(fc.HOME, "downloads")
     os.makedirs(downloads_dir, exist_ok=True)
@@ -643,7 +649,17 @@ def run_stage(
         # 5 menit). Setiap langkah lewat r.call supaya sambung ulang otomatis.
         await r.call(lambda c: _open_app(c), attempts=3)
         if mode:
-            await r.call(lambda c: _pick_mode(c, mode), attempts=3)
+            if await r.call(lambda c: _pick_mode(c, mode), attempts=3):
+                print(f"[gemini] mode: {mode}", file=sys.stderr, flush=True)
+            else:
+                # jangan senyap: ekor balasan nanti membingungkan kalau mode
+                # ternyata bukan yang diminta
+                print(
+                    f"[gemini] mode {mode!r} tidak bisa dipilih "
+                    "(item tidak ada di menu) — pakai setelan akun",
+                    file=sys.stderr,
+                    flush=True,
+                )
         n = await r.call(lambda c: _attach_images(c, images), attempts=3)
         if with_tool:
             # percobaan 1: paksa mode gambar lewat menu plus "Buat gambar"

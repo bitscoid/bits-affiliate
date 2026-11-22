@@ -65,7 +65,7 @@ bits-affiliate --product /path/product.jpg [--model /path/model.jpg]
 | `--title "text"` | video title; empty = AI picks it from the storyboard |
 | `--slug name` | output folder; default derived from the title |
 | `--account email` | account for stage 1; default constant in `pipeline.py` |
-| `--mode Auto` | Gemini model mode; default = leave the account's setting |
+| `--mode Auto` | Gemini model mode — only for accounts whose picker exposes it (A/B: some accounts only offer Hydrogen); the code logs and continues with the account's setting when the item is missing |
 | `--timeout 900` | per-stage wait budget in seconds; keep >= 900 |
 | `--skip-gemini` | reuse existing STORYBOARD.jpeg + FLOW.md |
 | `--skip-flow` | stop after Gemini (0 credits spent) |

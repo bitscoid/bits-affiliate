@@ -528,7 +528,6 @@ async def _download_clip(c, downloads_dir, out_path, before, timeout=240):
                 last_size[f] = size
         if cands:
             src = max(cands, key=os.path.getsize)
-            os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
             shutil.copyfile(src, out_path)
             return {
                 "via": "Download media -> 720p",
@@ -538,6 +537,101 @@ async def _download_clip(c, downloads_dir, out_path, before, timeout=240):
             }
     raise SystemExit(
         f"unduhan 720p tidak muncul dalam {timeout}s "
+        f"(folder: {sorted(os.listdir(downloads_dir))[-3:]})"
+    )
+
+
+async def _download_from_tile(c, downloads_dir, out_path, before, timeout=240):
+    """Unduh tanpa masuk editor: menu tile 'Opsi lainnya' -> Download -> 720p.
+
+    Klik thumbnail di halaman project sering sekadar membuka preview, bukan
+    editor -- jalur menu tile inilah yang terbukti berjalan di lapangan.
+    """
+    r = await c.eval(r"""
+    (() => {
+      const th = [...document.querySelectorAll('img')]
+        .find((i) => /\/asb\//.test(i.src || '') && i.naturalHeight > i.naturalWidth);
+      if (!th) return 'no thumb';
+      const tile = th.closest('[class*=tile],[class*=card],[class*=item]') || th;
+      const btn = [...tile.querySelectorAll('button')]
+        .find((e) => /opsi lainnya|more options/i
+          .test(e.getAttribute('aria-label') || ''));
+      if (!btn) return 'no menu button';
+      btn.click();
+      return 'open';
+    })()
+    """)
+    if r != "open":
+        raise SystemExit(f"menu tile tidak terbuka: {r}")
+    await asyncio.sleep(2)
+    klik = await c.eval(r"""
+    (() => {
+      const items = [...document.querySelectorAll(
+          '[role="menuitem"],.mat-mdc-menu-item')]
+        .filter((e) => /download|unduh/i.test(e.innerText || ''));
+      if (!items.length) return 'no download item';
+      items[0].click();
+      return 'clicked';
+    })()
+    """)
+    if klik != "clicked":
+        raise SystemExit(f"item Download tidak ada di menu tile: {klik}")
+
+    # menu kualitas bisa muncul; pilih 720p kalau ada, kalau tidak biarkan
+    # unduhan langsung berjalan
+    deadline_menu = time.time() + 30
+    while time.time() < deadline_menu:
+        await asyncio.sleep(2)
+        picked = await c.eval(r"""
+        (() => {
+          const opt = [...document.querySelectorAll(
+              'button,[role="menuitem"],.mat-mdc-menu-item')]
+            .find((e) => /^\s*720p/.test((e.innerText || '')
+                      .replace(/\s+/g, ' '))
+                   || /ukuran asli|original size/i.test(
+                        e.innerText || e.getAttribute('aria-label') || ''));
+          if (!opt) return null;
+          opt.click();
+          return (opt.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+        })()
+        """)
+        if picked:
+            break
+
+    src = await _await_new_file(downloads_dir, before, timeout)
+    os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
+    shutil.copyfile(src, out_path)
+    return {
+        "via": "menu tile -> Download -> 720p",
+        "file": os.path.basename(src),
+        "picked": picked or "direct",
+        "bytes": os.path.getsize(out_path),
+    }
+
+
+async def _await_new_file(downloads_dir, before, timeout):
+    """File baru >100 KB yang ukurannya stabil dua polling berturut-turut."""
+    deadline = time.time() + timeout
+    last_size = {}
+    while time.time() < deadline:
+        await asyncio.sleep(3)
+        for f in os.listdir(downloads_dir):
+            if f in before or f.endswith((".crdownload", ".tmp")):
+                continue
+            path = os.path.join(downloads_dir, f)
+            try:
+                size = os.path.getsize(path)
+            except OSError:
+                # file bisa menghilang antara listdir dan stat (rename .crdownload)
+                continue
+            if size <= 100000:
+                continue
+            # ukuran harus sama di dua polling berturut-turut = file selesai
+            if last_size.get(f) == size:
+                return path
+            last_size[f] = size
+    raise SystemExit(
+        f"unduhan tidak muncul dalam {timeout}s "
         f"(folder: {sorted(os.listdir(downloads_dir))[-3:]})"
     )
 
@@ -631,20 +725,38 @@ def run_stage(
         await r.call(wait, attempts=10)
         log("thumbnail clip muncul; buka editor")
 
+        before = set(os.listdir(downloads_dir))
+
         async def open_edit(conn):
             return await _open_clip_editor(conn)
 
-        clip_url = await r.call(open_edit, attempts=6)
-        log(f"editor: {clip_url}")
+        try:
+            clip_url = await r.call(open_edit, attempts=2)
+            log(f"editor: {clip_url}")
 
-        before = set(os.listdir(downloads_dir))
+            async def dl(conn):
+                return await _download_clip(
+                    conn, downloads_dir, out_path, before, timeout=240
+                )
 
-        async def dl(conn):
-            return await _download_clip(
-                conn, downloads_dir, out_path, before, timeout=240
+            dl_info = await r.call(dl, attempts=4)
+        except SystemExit as e:
+            # klik thumbnail sering sekadar membuka preview, bukan editor.
+            # Jalur terbukti: menu tile "Opsi lainnya -> Download -> 720p".
+            if "clip editor" not in str(e) and "thumbnail" not in str(e):
+                raise
+            log(
+                f"editor tidak terbuka ({e}); unduh dari menu tile"
+                " Opsi lainnya -> Download"
             )
 
-        dl_info = await r.call(dl, attempts=4)
+            async def dl_tile(conn):
+                return await _download_from_tile(
+                    conn, downloads_dir, out_path, before, timeout=240
+                )
+
+            dl_info = await r.call(dl_tile, attempts=3)
+
         log(f"video terunduh: {dl_info['bytes'] // 1024} KB (via {dl_info['via']})")
 
         result["download"] = dl_info
