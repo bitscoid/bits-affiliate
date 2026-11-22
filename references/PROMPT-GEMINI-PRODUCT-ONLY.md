@@ -24,13 +24,13 @@ This prompt defines a complete storyboard production workflow from a product ima
 
 ## Fixed video spec
 
-Final Google Flow video must be exactly 10 seconds, vertical 9:16, 1080×1920, with six timed beats:
-- 00:00–00:01.5 Hook
-- 00:01.5–00:03.0 Feature
-- 00:03.0–00:04.5 Demo or neutral product presentation
-- 00:04.5–00:06.5 Supported benefit or neutral product presentation
-- 00:06.5–00:08.0 Product detail/value without price or comparison claim
-- 00:08.0–00:10.0 Closing hero hold
+Final Google Flow video must be exactly 13 seconds, vertical 9:16, 720×1280, with six timed beats:
+- 00:00–00:02 Hook
+- 00:02–00:04 Feature
+- 00:04–00:06.5 Demo or neutral product presentation
+- 00:06.5–00:08.5 Supported benefit or neutral product presentation
+- 00:08.5–00:11 Product detail/value without price or comparison claim
+- 00:11–00:13 Closing hero hold
 
 Adapt beat content to visible evidence. Keep six beats and timing even if a beat uses neutral product presentation. Hard cuts only; no transition effects. Voice-over must be natural Indonesian, concise, evidence-based, one short line per beat. No music, captions, subtitles, or CTA.
 
@@ -52,7 +52,7 @@ The prompt must:
 - Explicitly say to use the uploaded storyboard image only as a guide to the six shot concepts, visual continuity, product identity, and any intended quoted overlays.
 - Reconstruct six new live-action shots; never display, animate, pan, zoom, freeze, or reproduce the storyboard sheet itself.
 - Reproduce the exact product from the uploaded product reference. If only the storyboard is available in Flow, use its product depiction as reference and do not invent details that are unclear.
-- State the fixed 10-second, vertical 9:16, 1080×1920 output and six beat timecodes exactly as above.
+- State the fixed 13-second, vertical 9:16, 720×1280 output and six beat timecodes exactly as above.
 - Describe each shot with action, framing, and cut, adapted to the image and product evidence. Where the storyboard is unclear, choose conservative product-only footage.
 - Render only the exact Indonesian overlay copy explicitly shown as intended overlay in storyboard. Never render scene titles, scene numbers, timecodes, panel labels, technical notes, color names, hex/CSS codes, or production metadata.
 - Preserve the storyboard's intentional doodle and motion-graphic treatment when useful. Use restrained animation for arrows, circles, underlines, sparkles, motion trails, or icons that explain visible product details. Preserve the storyboard's hand-drawn doodle/display font, white letter outline, and contrasting non-white fill for all intended advertising overlay copy, especially the Hook and feature/benefit overlays; keep wording exact, Indonesian, and legible over every shot. Do not apply this treatment to technical notes, scene labels, or timecodes. Keep graphics legible and product-appropriate; never obscure product or imply unsupported claims. Do not invent graphics absent from the storyboard.

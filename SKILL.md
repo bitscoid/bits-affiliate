@@ -146,8 +146,8 @@ Locked video spec — no fallbacks on model, resolution, or duration:
 | Outputs | x1 (Flow defaults to x2; must be zeroed) |
 | Cost | 48 credits |
 
-Gemini writes six 10-second beats in its prompt; Flow renders 13 s and
-decides its own pacing.
+Gemini writes six beats timed across 13 s, matching the Flow render
+exactly (the prompt templates carry the same spec).
 
 Every step that talks to the page goes through the reconnecting CDP wrapper
 (`r.call`): Chrome drops the debugger socket during long waits, and a drop
