@@ -23,6 +23,7 @@ import json
 import os
 import re
 import subprocess as sp
+import sys
 import time
 
 from . import check_credits as cc
@@ -172,7 +173,7 @@ def main():
 
     summary = {"account": args.account, "kind": kind, "dir": out_dir}
 
-    # ---- stage 1
+    # ---- stage 1 (rotasi akun: kuota gambar harian tiap akun terbatas)
     if args.skip_gemini:
         for f in (storyboard, flow_md):
             if not os.path.exists(f):
@@ -182,15 +183,46 @@ def main():
         print("gemini  : dilewati (pakai berkas yang ada)", flush=True)
     else:
         images = [product] + ([model] if model else [])
-        g = gemini_stage.run_stage(
-            args.account,
-            images,
-            prompt_file,
-            out_dir,
-            timeout=args.timeout,
-            visible=args.visible,
-            mode=args.mode,
-        )
+        urutan1 = [args.account] + [
+            a["account"] for a in fc.list_accounts() if a["account"] != args.account
+        ]
+        MAX_AKUN_GEMINI = 3  # tiap percobaan bisa ~7-15 mnt (2 attempt di dalam)
+        dicoba1, gagal1 = set(), []
+        g = None
+        akun_gemini = None
+        for acc in urutan1:
+            if len(dicoba1) >= MAX_AKUN_GEMINI:
+                break
+            dicoba1.add(acc)
+            print(f"gemini  : {acc}", flush=True)
+            try:
+                g = gemini_stage.run_stage(
+                    acc,
+                    images,
+                    prompt_file,
+                    out_dir,
+                    timeout=args.timeout,
+                    visible=args.visible,
+                    mode=args.mode,
+                )
+                akun_gemini = acc
+                break
+            except SystemExit as e:
+                gagal1.append((acc, str(e)))
+                print(
+                    f"[gemini] {acc}: {str(e)[:140]} — lanjut akun lain",
+                    file=sys.stderr,
+                    flush=True,
+                )
+        if g is None:
+            raise SystemExit(
+                "SEMUA AKUN GAGAL di tahap Gemini "
+                f"({', '.join(a for a, _ in gagal1)}). "
+                "Kemungkinan kuota gambar harian tiap akun sudah habis — "
+                "coba lagi besok."
+            )
+        args.account = akun_gemini
+        summary["account"] = akun_gemini
         summary["gemini"] = g
         print(
             f"gemini  : {g['images_attached']} gambar, storyboard "
