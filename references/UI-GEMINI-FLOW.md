@@ -42,7 +42,8 @@ Kalau URL berakhir di `/signin`, script berhenti dan meminta login ulang.
 | Judul | kecocokan **terakhir** `STORYBOARD + FLOW PROMPT —` (echo prompt di atas juga mengandung baris ini dengan placeholder); placeholder `[…]` / `{…}` / backtick ditolak -> jatuh ke nama berkas produk |
 
 Tanda selesai: tidak ada tombol `Hentikan`/`Stop`/`Batalkan` **dan** panjang teks
-stabil 4 putaran (interval 10 dtk). Abaikan sementara: `document.body` null saat
+stabil 4 putaran. Interval polling adaptif: 10 dtk selama "menulis", turun ke
+3 dtk setelah Stop hilang (konfirmasi ~12 dtk). Abaikan sementara: `document.body` null saat
 reload dan putus CDP -> putaran dilewati, bukan dianggap reset.
 
 Gagal yang dibedakan (semua bisa di-retry `ATTEMPTS=2`):
