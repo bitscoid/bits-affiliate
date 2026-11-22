@@ -61,7 +61,6 @@ def test_flow_labels_bilingual():
     for id_label, en_label in (
         ("proyek baru", "new project"),
         ("unggah media", "upload media"),
-        ("tambahkan ke perintah", "add to prompt"),
         ("tambahkan bahan", "add ingredients"),
         ("mulai pembuatan", "start generation"),
         ("unduh media", "download media"),

@@ -358,41 +358,66 @@ async def _upload(c, image_path):
     await asyncio.sleep(12)
 
 
+CHIP_BAR = "'.prompt-ingredient-bar flow-ingredient-chip'"
+
+
+async def _chip_bar_count(c):
+    """Chip TERPASANG di prompt bar dengan <img> (bukan chip progress upload).
+
+    Chip progress upload innerText-nya 'cancel' dan tanpa gambar — menghitung
+    itu membuat pipeline membayar generate tanpa storyboard (terjadi nyata).
+    """
+    return await c.eval(
+        "[...document.querySelectorAll(" + CHIP_BAR + ")]"
+        ".filter((ch) => ch.querySelector('img')).length"
+    )
+
+
 async def _attach(c):
-    """Uploaded assets are only in the library; click to put them in the prompt."""
+    """Klik thumbnail aset di library -> chip mendarat di prompt bar.
+
+    Tombol "Add to prompt" tidak selalu menempel (lapangan: klik tanpa efek),
+    sedangkan klik thumbnail langsung terbukti menempel. Panel ditutup dengan
+    Escape — tombol Cancel menghapus chip di beberapa varian UI.
+    """
     if not await c.eval("document.querySelectorAll('.asset-thumbnail').length"):
         box = await _ingredients_button_box(c)
         if box:
             await c.tap(*box)
-            await asyncio.sleep(4)
+            # tunggu ASET siap, bukan sekadar panel terbuka: chip 'cancel'
+            # milik progress upload jangan dihitung sebagai keberhasilan
+            for _ in range(10):
+                await asyncio.sleep(2)
+                if await c.eval("document.querySelectorAll('.asset-thumbnail').length"):
+                    break
     r = await c.eval(r"""
     (() => {
-      const add = [...document.querySelectorAll('button,a,[role="button"]')].find((e) =>
-        /tambahkan ke perintah|add to prompt/i
-          .test(e.innerText || e.getAttribute('aria-label') || ''));
-      if (add) { add.click(); return 'via add button'; }
       const th = document.querySelector('.asset-thumbnail, img.thumbnail');
-      if (th) { th.click(); return 'via thumbnail'; }
-      return 'none';
+      if (!th) return 'no asset';
+      const t = th.closest('button,[role="button"],.upload-item') || th;
+      t.click();
+      return 'clicked';
     })()
     """)
-    if r == "none":
+    if r != "clicked":
         raise FlowSetupError("aset tidak bisa ditempel ke prompt")
-    await asyncio.sleep(3)
-    chips = await c.eval(
-        "document.querySelectorAll('flow-ingredient-chip,"
-        ".reference-ingredient-chip').length"
-    )
-    await c.eval(r"""
-    (() => {
-      const b = [...document.querySelectorAll('button')].find((e) =>
-        /^(cancel|batal|tutup|close)$/i.test((e.innerText || '').trim()));
-      if (b) b.click();
-      return true;
-    })()
-    """)
+    chips = 0
+    for _ in range(6):
+        await asyncio.sleep(2)
+        chips = await _chip_bar_count(c)
+        if chips >= 1:
+            break
+    # tutup panel dengan Escape (Cancel menghapus chip di varian UI tertentu)
+    await _press_escape(c)
     await asyncio.sleep(2)
-    return chips
+    chips2 = await _chip_bar_count(c)
+    if chips2 < 1:
+        raise FlowSetupError(
+            "chip storyboard hilang dari prompt bar "
+            f"(sementara terlihat {chips}) — panel menutup membatalkannya"
+        )
+    await asyncio.sleep(1)
+    return chips2
 
 
 async def _type_prompt(c, text):
@@ -481,7 +506,19 @@ async def _generate(c, cost=""):
         raise FlowSetupError(f"tidak bisa mulai pembuatan: {r}")
 
 
-async def _wait_render(c, timeout=900, interval=15):
+async def _press_escape(c):
+    """Tutup overlay/preview yang bisa menghalangi klik grid."""
+    for ev in ("keyDown", "keyUp"):
+        await c.cmd(
+            "Input.dispatchKeyEvent",
+            type=ev,
+            key="Escape",
+            code="Escape",
+            windowsVirtualKeyCode=27,
+        )
+
+
+async def _wait_render(c, timeout=900, interval=8):
     """Poll the project page until the generated 9:16 clip thumbnail appears.
 
     The clip's thumbnail is an ``/asb/`` image taller than wide. While waiting,
@@ -630,22 +667,29 @@ async def _download_from_tile(c, downloads_dir, out_path, before, timeout=240):
     Klik thumbnail di halaman project sering sekadar membuka preview, bukan
     editor -- jalur menu tile inilah yang terbukti berjalan di lapangan.
     """
+    await _press_escape(c)
+    await asyncio.sleep(1)
     r = await c.eval(r"""
     (() => {
       const th = [...document.querySelectorAll('img')]
         .find((i) => /\/asb\//.test(i.src || '') && i.naturalHeight > i.naturalWidth);
-      if (!th) return 'no thumb';
+      if (!th) return JSON.stringify({err: 'no thumb',
+        imgs: document.images.length,
+        asb: [...document.images].filter((i) => /asb/.test(i.src || '')).length});
       const tile = th.closest('[class*=tile],[class*=card],[class*=item]') || th;
       const btn = [...tile.querySelectorAll('button')]
         .find((e) => /opsi lainnya|more options/i
           .test(e.getAttribute('aria-label') || ''));
-      if (!btn) return 'no menu button';
+      if (!btn) return JSON.stringify({err: 'no menu button',
+        btns: [...tile.querySelectorAll('button')].map((e) =>
+          e.getAttribute('aria-label') || '').slice(0, 6)});
       btn.click();
       return 'open';
     })()
     """)
-    if r != "open":
-        raise SystemExit(f"menu tile tidak terbuka: {r}")
+    res = json.loads(r) if isinstance(r, str) and r.startswith("{") else {"err": r}
+    if "err" in res:
+        raise SystemExit(f"menu tile tidak terbuka: {res}")
     await asyncio.sleep(2)
     klik = await c.eval(r"""
     (() => {
@@ -848,7 +892,7 @@ def run_stage(
 
         log("klik Mulai pembuatan")
         await r.call(lambda conn: _generate(conn, settings.get("cost", "")), attempts=4)
-        log(f"menunggu render selesai (polling tiap 15 dtk, maks {timeout} dtk)")
+        log(f"menunggu render selesai (polling tiap 8 dtk, maks {timeout} dtk)")
 
         async def wait(conn):
             return await _wait_render(conn, timeout=timeout)
