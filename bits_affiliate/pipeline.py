@@ -14,7 +14,7 @@ Contoh:
       --product /path/product.jpg \
       --model /path/model.jpg \
       --title "nama-video" \
-      --account nurulimamstudio@gmail.com
+      --account you@example.com
 
 Hasil di ./<slug>/: STORYBOARD.jpeg, FLOW.md, <slug>.mp4
 """
@@ -126,7 +126,11 @@ def main():
         help="judul video; kosongkan agar AI isi dari konten storyboard",
     )
     p.add_argument("--slug", help="folder hasil; default dari --title")
-    p.add_argument("--account", default="nurulimamstudio@gmail.com")
+    p.add_argument(
+        "--account",
+        default=None,
+        help="akun awal stage 1 & Flow (default: akun pertama yang terdaftar)",
+    )
     p.add_argument("--timeout", type=int, default=900)
     p.add_argument(
         "--skip-gemini",
@@ -160,6 +164,13 @@ def main():
     )
     args = p.parse_args()
     args.visible = args.vnc
+    if not args.account:
+        accounts = fc.list_accounts()
+        if not accounts:
+            raise SystemExit(
+                "Tidak ada akun terdaftar. Daftarkan dulu: bits-login --add <email>"
+            )
+        args.account = accounts[0]["account"]
 
     # Folder sementara: setelah Gemini memberi judul, folder bisa diganti nama.
     provisional = args.slug or (
