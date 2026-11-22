@@ -66,6 +66,7 @@ def test_flow_labels_bilingual():
         ("ukuran asli", "original size"),
         ("rangkaian model", "model series"),
         ("Buat dengan", "Create with"),  # penanda logout saat render
+        ("otomatis", "auto"),  # nama item pemilih mode
     ):
         assert id_label in src, id_label
         assert en_label in src, en_label

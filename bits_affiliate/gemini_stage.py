@@ -172,6 +172,16 @@ async def _send(c):
         raise SystemExit(f"tidak bisa mengirim ke Gemini: {r}")
 
 
+# Nama mode per bahasa UI. "Auto" versi Indonesia = "Otomatis"; item panel
+# juga membawa ikon + deskripsi (mis. "Bantuan sehari-hari 4 Hydrogen"),
+# jadi pencocokan pakai word-boundary, bukan teks persis.
+MODE_ALIASES = {
+    "auto": r"\b(?:auto|otomatis)\b",
+    "otomatis": r"\b(?:auto|otomatis)\b",
+    "hydrogen": r"\bhydrogen\b",
+}
+
+
 async def _pick_mode(c, mode):
     """Pilih mode model di pemilih mode (mis. 'Auto' alih-alih 'Hydrogen').
 
@@ -188,8 +198,10 @@ async def _pick_mode(c, mode):
     """)
     if not label:
         return False
-    if re.search(rf"saat ini {mode}|currently {mode}", label, re.I):
-        return True
+    alias = MODE_ALIASES.get(mode.lower(), re.escape(mode))
+    if re.search(rf"saat ini \w+|currently \w+", label, re.I):
+        if re.search(alias, label, re.I):
+            return True
     await c.eval(r"""
     (() => {
       const b = [...document.querySelectorAll('button')].find((e) =>
@@ -200,20 +212,22 @@ async def _pick_mode(c, mode):
     """)
     item = r"""
     (() => {
-      const want = %s;
+      const pat = new RegExp(%s, 'i');
       const hit = (e) => {
         const t = ((e.getAttribute('aria-label') || '') + ' '
                   + (e.innerText || '')).replace(/\s+/g, ' ').trim();
-        return t.toLowerCase() === want;
+        return pat.test(t);
       };
       const it = [...document.querySelectorAll(
           '[role="menuitem"],[role="menuitemradio"],[role="radio"],button')]
-        .find((e) => hit(e) && e.offsetParent);
+        .find((e) => hit(e) && e.offsetParent
+                        && !/pemilih mode|mode picker/i.test(
+                             e.getAttribute('aria-label') || ''));
       if (!it) return null;
       it.click();
       return 'picked';
     })()
-    """ % json.dumps(mode.lower())
+    """ % json.dumps(alias)
     for _ in range(TOOL_MENU_WAIT):
         await asyncio.sleep(TOOL_POLL)
         if await c.eval(item) == "picked":
