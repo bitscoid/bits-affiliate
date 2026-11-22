@@ -28,15 +28,12 @@ def test_gemini_labels_bilingual():
         gs._reveal_file_inputs,
         gs._send,
         gs._reply_state,
-        gs._pick_create_image,
         gs._pick_mode,
     )
     for id_label, en_label in (
         ("unggah", "upload"),
         ("kirim pesan", "send message"),
         ("hentikan", "stop"),
-        ("alat", "tools"),
-        ("buat gambar", "create image"),
         ("pemilih mode", "mode picker"),
     ):
         assert id_label in src, id_label

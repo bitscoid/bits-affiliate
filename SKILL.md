@@ -89,20 +89,18 @@ The final summary is printed as JSON (paths are updated after the rename).
    they do not exist in the DOM before that click.
 4. Feed images into `input[type=file][accept*="image"]` via CDP
    `DOM.setFileInputFiles`. Never use the native file chooser: inconsistent.
-5. Click the plus menu item **Buat gambar / Create images** — forces an image
-   in the reply (attempt 1). Poll for it: the item renders late.
-6. Paste the reference prompt into the `[contenteditable="true"]` editor via
+5. Paste the reference prompt into the `[contenteditable="true"]` editor via
    `Input.insertText`, then click **Kirim pesan / Send message**.
-7. Wait for completion: text stops growing AND the Stop button is gone.
+6. Wait for completion: text stops growing AND the Stop button is gone.
    Silence of >5 minutes before the first token is NORMAL (server queue);
    images appearing before text also counts as progress. A page that shrinks
    by >50% means Gemini reset the conversation — a failure.
-8. Grab the storyboard: `img` with the largest **rendered** size (source
+7. Grab the storyboard: `img` with the largest **rendered** size (source
    thumbnail ~112 px, storyboard ~708 px; `naturalWidth` lies), click
    **Download full-size image** (hover to reveal, poll up to 6 s), detect the
    new file by **mtime** in the profile's downloads folder, save as
    `STORYBOARD.jpeg`.
-9. Extract the fenced block under `PROMPT GOOGLE FLOW` into `FLOW.md`, and
+8. Extract the fenced block under `PROMPT GOOGLE FLOW` into `FLOW.md`, and
    the title hint from the LAST `STORYBOARD + FLOW PROMPT —` line (earlier
    matches are the echoed prompt's placeholder).
 
@@ -113,8 +111,9 @@ Failure handling, `ATTEMPTS = 2` with a fresh conversation each attempt:
 - **Conversation reset** (`GeminiStalled`): page shrank >50%.
 - **Incomplete reply** (`ReplyIncomplete`): no storyboard image, or the Flow
   block is missing. The error message includes the tail of Gemini's reply
-  (limits/refusals are written there). Attempt 2 drops the Create-image tool,
-  because forcing image mode can swallow the text block.
+  (limits/refusals are written there). The "Buat gambar / Create images"
+  plus-menu tool is NOT used at all: in the field it broke more replies
+  than it fixed, so a failure simply retries the identical plain process.
 
 ## Stage 2 — Flow (13 s ≈ 48 credits; 10 s cheaper, measured at probe)
 

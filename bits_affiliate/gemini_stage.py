@@ -41,7 +41,7 @@ STALL_ROUNDS = 36  # putaran diam SAAT 'menulis' -> macet (6 mnt: Gemini bisa
 ATTEMPTS = 2  # percobaan percakapan; Gemini kadang tidak pernah mulai
 MIN_IMAGE_BYTES = 20000  # di bawah ini: ikon/preview, bukan storyboard
 MIN_RENDER_PX = 200  # lebar/tinggi TAMPIL minimum; thumbnail sumber ~112 px
-TOOL_MENU_WAIT = 5  # putaran menunggu item "Buat gambar" muncul di menu plus
+MENU_WAIT = 5  # putaran menunggu item menu (mode picker) muncul
 TOOL_POLL = 1  # dtk per putaran menu (test menyetel 0)
 
 
@@ -228,52 +228,11 @@ async def _pick_mode(c, mode):
       return 'picked';
     })()
     """ % json.dumps(alias)
-    for _ in range(TOOL_MENU_WAIT):
+    for _ in range(MENU_WAIT):
         await asyncio.sleep(TOOL_POLL)
         if await c.eval(item) == "picked":
             await asyncio.sleep(1)
             return True
-    return False
-
-
-async def _pick_create_image(c):
-    """Pilih 'Buat gambar' di menu plus agar balasan dijamin ada gambarnya.
-
-    Tanpa ini Gemini kadang menjawab teks saja -- hanya prompt Flow, tanpa
-    storyboard -- kegagalan yang paling sering. Item menu render lambat, jadi
-    dipolling. False = item tidak ada (UI/mode berbeda) -> lanjut cara lama.
-    """
-    plus = r"""
-    (() => {
-      const b = [...document.querySelectorAll('button')].find((e) =>
-        /upload (& )?alat|upload .*(and )?tools?/i.test(
-          e.getAttribute('aria-label') || e.innerText || ''));
-      if (!b) return 'no plus';
-      b.click();
-      return 'open';
-    })()
-    """
-    if await c.eval(plus) != "open":
-        return False
-    item = r"""
-    (() => {
-      const hit = (e) => /buat gambar|create images?/i.test(
-        e.getAttribute('aria-label') || e.innerText || '');
-      const it = [...document.querySelectorAll(
-          '[role="menuitem"],[role="menuitemradio"],button')]
-        .find((e) => hit(e) && e.offsetParent);
-      if (!it) return null;
-      it.click();
-      return 'picked';
-    })()
-    """
-    for _ in range(TOOL_MENU_WAIT):
-        await asyncio.sleep(TOOL_POLL)
-        if await c.eval(item) == "picked":
-            await asyncio.sleep(1)
-            return True
-    # tutup menu yang masih terbuka supaya tidak menutupi composer
-    await c.eval(plus)
     return False
 
 
@@ -658,7 +617,7 @@ def run_stage(
     time.sleep(1)
     fc.ensure_chrome(account, port, headless=not visible)
 
-    async def body(r, with_tool):
+    async def body(r):
         # Chrome memutus koneksi CDP selama tunggu panjang (Gemini bisa diam
         # 5 menit). Setiap langkah lewat r.call supaya sambung ulang otomatis.
         await r.call(lambda c: _open_app(c), attempts=3)
@@ -675,11 +634,6 @@ def run_stage(
                     flush=True,
                 )
         n = await r.call(lambda c: _attach_images(c, images), attempts=3)
-        if with_tool:
-            # percobaan 1: paksa mode gambar lewat menu plus "Buat gambar"
-            # supaya balasan pasti berisi storyboard. Percobaan 2 tanpa ini
-            # (kalau mode gambar malah memakan blok teks Flow).
-            await r.call(lambda c: _pick_create_image(c), attempts=3)
         await r.call(lambda c: _type_prompt(c, prompt), attempts=3)
         await r.call(lambda c: _send(c), attempts=3)
 
@@ -707,16 +661,15 @@ def run_stage(
 
     for attempt in range(1, ATTEMPTS + 1):
         try:
-            return fc.run_resilient(lambda r, a=attempt: body(r, a == 1), port)
+            return fc.run_resilient(lambda r: body(r), port)
         except (GeminiStalled, ReplyIncomplete) as e:
             if attempt >= ATTEMPTS:
                 raise SystemExit(
                     f"{e}. Coba lagi nanti atau pakai akun lain."
                 ) from None
-            ekstra = " tanpa 'Buat gambar'" if isinstance(e, ReplyIncomplete) else ""
             print(
                 f"[gemini] percobaan {attempt}/{ATTEMPTS} gagal: {e} "
-                f"-> buka percakapan baru{ekstra}",
+                f"-> buka percakapan baru",
                 file=sys.stderr,
                 flush=True,
             )

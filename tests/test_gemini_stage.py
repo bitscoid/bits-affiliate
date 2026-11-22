@@ -205,60 +205,6 @@ def test_pick_mode_switches_when_different():
         gs.TOOL_POLL = asli
 
 
-def test_pick_create_image_true():
-    """Menu plus terbuka dan item 'Buat gambar' diklik -> True."""
-    import asyncio
-
-    class C(FakeCDP):
-        async def eval(self, script, *a, **k):
-            if "buat gambar" in script:
-                return "picked"
-            return "open"
-
-    asli = gs.TOOL_POLL
-    gs.TOOL_POLL = 0
-    try:
-        assert asyncio.run(gs._pick_create_image(C())) is True
-    finally:
-        gs.TOOL_POLL = asli
-
-
-def test_pick_create_image_missing_item_closes_menu():
-    """Item tidak ada (UI beda) -> False, menu ditutup, cara lama lanjut."""
-    import asyncio
-
-    class C(FakeCDP):
-        def __init__(self):
-            self.calls = 0
-
-        async def eval(self, script, *a, **k):
-            self.calls += 1
-            if "buat gambar" in script:
-                return None
-            return "open"
-
-    asli = gs.TOOL_POLL
-    gs.TOOL_POLL = 0
-    c = C()
-    try:
-        assert asyncio.run(gs._pick_create_image(c)) is False
-    finally:
-        gs.TOOL_POLL = asli
-    # plus diklik 2x: buka menu, lalu tutup lagi
-    assert c.calls >= 2 + gs.TOOL_MENU_WAIT - 0
-
-
-def test_pick_create_image_no_plus_button():
-    """Tombol plus tidak ada -> False tanpa crash."""
-    import asyncio
-
-    class C(FakeCDP):
-        async def eval(self, script, *a, **k):
-            return "no plus"
-
-    assert asyncio.run(gs._pick_create_image(C())) is False
-
-
 def test_grab_title_hint_rejects_placeholder():
     """JS mengambil kecocokan terakhir; Python menolak placeholder/template."""
     import asyncio
