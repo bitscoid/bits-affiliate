@@ -110,13 +110,23 @@ def _aliases(label):
     return ALIASES.get(label, [label])
 
 
-async def _click(c, label, menu=False):
+async def _click(c, label, menu=False, tolerant=False, wait=0):
+    """Klik toggle/menu; `wait` = percobaan ulang tiap 2 dtk sebelum menyerah.
+
+    `tolerant=True` -> kontrol yang memang tidak ada dilewati (mis. pilihan
+    resolusi terkunci di tier tertentu); chip tetap jadi sumber kebenaran.
+    """
     js = MENU_JS if menu else TOGGLE_JS
-    r = json.loads(await c.eval(js % json.dumps(_aliases(label))))
-    if not r.get("ok"):
-        raise FlowSetupError(f"tidak bisa klik {label!r}; terlihat: {r.get('avail')}")
-    await asyncio.sleep(2)
-    return r
+    r = {}
+    for _ in range(wait + 1):
+        r = json.loads(await c.eval(js % json.dumps(_aliases(label))))
+        if r.get("ok"):
+            await asyncio.sleep(2)
+            return r
+        await asyncio.sleep(2)
+    if tolerant:
+        return None
+    raise FlowSetupError(f"tidak bisa klik {label!r}; terlihat: {r.get('avail')}")
 
 
 async def _dismiss(c):
@@ -175,6 +185,12 @@ async def _new_project(c):
 
 
 async def _open_settings(c):
+    # panel bisa sudah terbuka dari percobaan sebelumnya — klik trigger
+    # ulang justru MENUTUP panel; coba klik Video langsung sebagai tes
+    r = json.loads(await c.eval(TOGGLE_JS % json.dumps(_aliases("Video"))))
+    if r.get("ok"):
+        await asyncio.sleep(2)
+        return "panel terbuka"
     await _dismiss(c)
     r = None
     # tombol setelan bisa muncul telat setelah project baru dimuat;
@@ -242,11 +258,11 @@ async def _set_duration(c, seconds):
 async def _apply_settings(c, seconds=SECONDS):
     """Video, Bahan, 9:16, 720p, x1, Omni 1.2 Flash, durasi `seconds`."""
     row = await _open_settings(c)
-    await _click(c, "Video")
-    await _click(c, "Ingredients")
-    await _click(c, ASPECT)
-    await _click(c, RESOLUTION)
-    await _click(c, f"x{OUTPUTS}")
+    await _click(c, "Video", wait=3)
+    await _click(c, "Ingredients", wait=3)
+    await _click(c, ASPECT, wait=3)
+    await _click(c, RESOLUTION, tolerant=True, wait=5)
+    await _click(c, f"x{OUTPUTS}", wait=3)
     # model picker ada di balik dropdown
     await c.eval(r"""
     (() => {
@@ -761,7 +777,7 @@ def probe_account(account, visible=False):
         return {"seconds": MIN_SECONDS, "cost": parse_cost(st["cost"])}
 
     try:
-        return fc.run(body, port)
+        return fc.run_resilient(body, port)
     finally:
         fc.stop_chrome(port)
 
