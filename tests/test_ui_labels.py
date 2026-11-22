@@ -54,8 +54,7 @@ def test_flow_labels_bilingual():
         fs._apply_settings,
         fs._credit_state,
         fs._generate,
-        fs._download_clip,
-        fs._open_clip_editor,
+        fs._download_from_tile,
         fs._wait_render,
     )
     for id_label, en_label in (

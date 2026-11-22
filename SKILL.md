@@ -135,11 +135,13 @@ Failure handling, `ATTEMPTS = 2` with a fresh conversation each attempt:
 5. Paste `FLOW.md` into the prompt editor with `Input.insertText`.
 6. Click **Mulai pembuatan / Start generation**. A `prompt-warning-button`
    means the account cannot pay — a hard stop, then auto-switch accounts.
-7. Poll until the 9:16 clip thumbnail (`/asb/`, taller than wide) appears;
-   watch for logout the whole time. Click it → `/edit/<clip-id>`.
-8. **Download media** opens a quality menu (`270p GIF` / `720p Original size`
-   / `1080p · 3 credits` / `4K`); pick **720p** (native resolution, no extra
-   credits). The finished file is copied from the downloads folder to
+7. Poll until the clip tile appears in the project grid: a `/asb/` image
+   taller than wide INSIDE a tile container (the storyboard chip in the
+   prompt bar uses `/asb/` too and must not match). Watch for logout
+   the whole time.
+8. Click the tile's **More options / Opsi lainnya** (⋮) → **Download** →
+   **720p Original size** (`270p GIF` / `720p` / `1080p Upscaled` /
+   `4K Upscaled`). The finished file is copied from the downloads folder to
    `./<slug>/<slug>.mp4` (detected by stable size across two polls).
 
 Adaptive video spec — model, resolution, aspect, and outputs are

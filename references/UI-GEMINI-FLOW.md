@@ -148,5 +148,5 @@ berbayar (+3 kredit saat dicek) — jangan dipilih.
 | Flow: upload + tempel bahan | `flow_stage._upload`, `_attach` |
 | Flow: prompt + generate | `flow_stage._type_prompt`, `_generate` |
 | Flow: peringatan kredit composer | `flow_stage._credit_state` |
-| Flow: tunggu clip + buka editor | `flow_stage._wait_render`, `_open_clip_editor` |
-| Flow: unduh 720p | `flow_stage._download_clip` |
+| Flow: tunggu clip (tile, bukan chip) | `flow_stage._wait_render` |
+| Flow: unduh 720p via menu tile | `flow_stage._download_from_tile` |
