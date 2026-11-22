@@ -1,8 +1,10 @@
 """
 Stage 2: Google Flow turns the storyboard image + Flow prompt into a video.
 
-Spec final (terkunci): Video · Bahan · 9:16 · 720p · x1 ·
-Omni 1.2 Flash · 13 dtk (48 kredit).
+Spec final: Video · Bahan · 9:16 · 720p · x1 · Omni 1.2 Flash ·
+13 dtk (48 kredit), dengan fallback 10 dtk untuk akun yang cap-nya
+lebih rendah — durasi diUKUR dari slider Flow per akun (probe), bukan
+ditebak dari label langganan.
 
 Durasi lewat slider ``input.mdc-slider__input``; nilai mentah = detik - 3
 (13 dtk -> nilai 10). Chip composer dibaca ulang setelah panel ditutup:
@@ -12,6 +14,7 @@ dialah sumber kebenaran.
 import asyncio
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -22,11 +25,26 @@ from . import flow_cdp as fc
 APP = "https://flow.google.com/"
 MODEL_LABEL = "Omni 1.2 Flash"
 SECONDS = 13
+MIN_SECONDS = 10
 ASPECT = "9:16"
 RESOLUTION = "720p"
 OUTPUTS = 1
 COST = 48
 STEP = [0]
+
+
+def pick_seconds(slider_max):
+    """Durasi terbaik yang sanggup dilakukan akun; 0 = tidak ada yang cocok."""
+    for s in (SECONDS, MIN_SECONDS):
+        if slider_max >= s - 3:
+            return s
+    return 0
+
+
+def parse_cost(text):
+    """'Generating will use 48 credits' / '48 kredit' -> 48; gagal -> 0."""
+    m = re.search(r"(\d+)\s*(credits|kredit)", text or "", re.I)
+    return int(m.group(1)) if m else 0
 
 
 class FlowSetupError(SystemExit):
@@ -181,7 +199,7 @@ async def _open_settings(c):
     return r
 
 
-async def _set_duration(c):
+async def _set_duration(c, seconds):
     """Slider durasi Omni 1.2: nilai mentah = detik - 3 (10 -> 13 dtk).
 
     Cap durasi beda-beda per akun (tier/eksperimen) — jangan ditebak dari
@@ -195,10 +213,10 @@ async def _set_duration(c):
     )
     if cap is None:
         raise FlowSetupError("slider durasi tidak ditemukan (mode Video?)")
-    if cap < SECONDS - 3:
+    if cap < seconds - 3:
         raise FlowSetupError(
             f"akun ini durasi maksimal {cap + 3} dtk "
-            f"(butuh {SECONDS} dtk — tier akun tidak mendukung)"
+            f"(butuh {seconds} dtk — tier akun tidak mendukung)"
         )
     ok = await c.eval(
         r"""
@@ -213,15 +231,15 @@ async def _set_duration(c):
       return true;
     })()
     """
-        % (SECONDS - 3)
+        % (seconds - 3)
     )
     if not ok:
         raise FlowSetupError("slider durasi tidak ditemukan (mode Video?)")
     await asyncio.sleep(2)
 
 
-async def _apply_settings(c):
-    """Video, Bahan, 9:16, 720p, x1, Omni 1.2 Flash, 13 dtk."""
+async def _apply_settings(c, seconds=SECONDS):
+    """Video, Bahan, 9:16, 720p, x1, Omni 1.2 Flash, durasi `seconds`."""
     row = await _open_settings(c)
     await _click(c, "Video")
     await _click(c, "Ingredients")
@@ -244,7 +262,7 @@ async def _apply_settings(c):
     await asyncio.sleep(2)
     await _click(c, MODEL_LABEL, menu=True)
     await asyncio.sleep(2)
-    await _set_duration(c)
+    await _set_duration(c, seconds)
     cost = await c.eval(
         "(document.querySelector('.credit-cost-label') || {}).innerText || ''"
     )
@@ -717,6 +735,36 @@ def ffprobe(path):
 # ------------------------------------------------------------------- stage
 
 
+def probe_account(account, visible=False):
+    """Ukur cap durasi + biaya akun di Flow. Return {"seconds", "cost"}.
+
+    Berhenti sebelum upload/prompt/billing — tidak menyentuh kredit.
+    Durasi terbaik yang didukung dipilih otomatis (13 dtk, kalau tidak
+    10 dtk). Dipanggil pipeline sekali per akun; hasilnya dicache di
+    caps.json sehingga run berikutnya tak probe ulang.
+    """
+    port = fc.port_for(account)
+    fc.stop_chrome(port)
+    time.sleep(1)
+    fc.ensure_chrome(account, port, headless=not visible)
+
+    async def body(r):
+        await r.call(lambda conn: _new_project(conn), attempts=3)
+        try:
+            st = await r.call(lambda conn: _apply_settings(conn, SECONDS), attempts=3)
+            return {"seconds": SECONDS, "cost": parse_cost(st["cost"])}
+        except FlowSetupError as e:
+            if "durasi maksimal" not in str(e):
+                raise
+        st = await r.call(lambda conn: _apply_settings(conn, MIN_SECONDS), attempts=3)
+        return {"seconds": MIN_SECONDS, "cost": parse_cost(st["cost"])}
+
+    try:
+        return fc.run(body, port)
+    finally:
+        fc.stop_chrome(port)
+
+
 def run_stage(
     account,
     storyboard,
@@ -726,8 +774,10 @@ def run_stage(
     timeout=900,
     visible=True,
     downloads_dir=None,
+    seconds=None,
 ):
-    """Render video Flow dari storyboard + prompt (spec terkunci di atas)."""
+    """Render video Flow dari storyboard + prompt (spec adaptif durasi)."""
+    seconds = seconds or SECONDS
     port = fc.port_for(account)
     downloads_dir = downloads_dir or os.path.join(fc.HOME, "downloads")
     os.makedirs(downloads_dir, exist_ok=True)
@@ -741,11 +791,11 @@ def run_stage(
         # langkah ber-side-effect tetap satu percobaan per koneksi; kalau CDP
         # putus di tengah, r.call sambung ulang dan ulang langkah tsb
         project = await r.call(lambda conn: _new_project(conn), attempts=4)
-        settings = await r.call(lambda conn: _apply_settings(conn), attempts=4)
-        if str(SECONDS) not in settings["chip"]:
+        settings = await r.call(lambda conn: _apply_settings(conn, seconds), attempts=4)
+        if str(seconds) not in settings["chip"]:
             raise FlowSetupError(
                 f"durasi tidak tersimpan: chip berbunyi {settings['chip']!r}, "
-                f"mau {SECONDS} dtk"
+                f"mau {seconds} dtk"
             )
         log(f"setelan jadi: {settings['chip']} | {settings['cost']}")
         log(f"upload storyboard: {os.path.basename(storyboard)}")

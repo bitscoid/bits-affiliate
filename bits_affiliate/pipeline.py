@@ -29,14 +29,16 @@ import time
 from . import check_credits as cc
 from . import flow_cdp as fc
 from . import flow_stage, gemini_stage
-from .flow_stage import COST  # satu sumber biaya video (13 dtk x 720p x1)
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REF = os.path.join(HERE, "references")
 PROMPT_ONLY = os.path.join(REF, "PROMPT-GEMINI-PRODUCT-ONLY.md")
 PROMPT_MODEL = os.path.join(REF, "PROMPT-GEMINI-PRODUCT-MODEL.md")
+PROMPT_ONLY_10 = os.path.join(REF, "PROMPT-GEMINI-PRODUCT-ONLY-10.md")
+PROMPT_MODEL_10 = os.path.join(REF, "PROMPT-GEMINI-PRODUCT-MODEL-10.md")
 
-# Spec video terkunci: Omni 1.2 Flash, 13 dtk, 720p, x1 (lihat flow_stage).
+# Spec video adaptif: Omni 1.2 Flash, 720p, x1; durasi 13 dtk (48 kredit)
+# atau 10 dtk untuk akun ber-cap rendah — diukur via probe Flow (fase 0).
 DL_DIR = os.path.join(fc.HOME, "downloads")
 
 
@@ -98,8 +100,14 @@ def slugify(text):
     return re.sub(r"[^a-z0-9]+", "-", (text or "").lower()).strip("-")[:60] or "project"
 
 
-def classify(product, model):
+def classify(product, model, seconds=flow_stage.SECONDS):
     """Which reference prompt applies: product only, or product + model."""
+    if seconds != flow_stage.SECONDS:
+        return (
+            ("product+model", PROMPT_MODEL_10)
+            if model
+            else ("product-only", PROMPT_ONLY_10)
+        )
     if model:
         return "product+model", PROMPT_MODEL
     return "product-only", PROMPT_ONLY
@@ -140,6 +148,14 @@ def main():
         default=None,
         help='mode model Gemini, mis. "Auto" (default: biarkan setelan akun)',
     )
+    p.add_argument(
+        "--seconds",
+        type=int,
+        default=None,
+        choices=(10, 13),
+        help="paksa durasi video (default: auto — probe Flow memilih "
+        "13 dtk bila ada akun yang sanggup, kalau tidak 10 dtk)",
+    )
     args = p.parse_args()
     args.visible = args.vnc
 
@@ -156,7 +172,70 @@ def main():
     product = ensure_usable_image(args.product, work)
     model = ensure_usable_image(args.model, work) if args.model else None
 
-    kind, prompt_file = classify(product, model)
+    # ---- fase 0: probe Flow — ukur cap durasi + biaya per akun, lalu
+    # pilih akun + durasi SEBELUM stage Gemini (template prompt ikut
+    # durasi). Tanpa kredit terbakar: berhenti sebelum upload/prompt.
+    caps_file = os.path.join(fc.HOME, "caps.json")
+    caps = {}
+    if os.path.exists(caps_file):
+        caps = json.load(open(caps_file, encoding="utf-8"))
+
+    if args.seconds or args.skip_gemini or args.skip_flow:
+        # durasi dipaksa manual, atau artefak sudah ada (diasumsikan
+        # versi 13 dtk): tidak ada keputusan durasi otomatis
+        if not args.seconds:
+            args.seconds = flow_stage.SECONDS
+        biaya = flow_stage.COST  # konservatif; biaya final dibaca chip
+    else:
+        urut0 = [args.account] + [
+            a["account"] for a in fc.list_accounts() if a["account"] != args.account
+        ]
+        saldo0 = {a: cc.account_balance(a) for a in urut0}
+        urut0.sort(
+            key=lambda a: saldo0[a][0] if saldo0[a][0] is not None else -1,
+            reverse=True,
+        )
+        kandidat_durasi = []  # (rank 0=13 dtk, acc, sec, cost)
+        for acc in urut0:
+            bal = saldo0[acc][0]
+            info = caps.get(acc)
+            if info is None:
+                if bal is not None and bal < flow_stage.MIN_SECONDS:
+                    continue  # biaya termurah pun tak terjangkau
+                print(f"probe    : {acc} (ukur cap durasi + biaya)...", flush=True)
+                try:
+                    info = flow_stage.probe_account(acc)
+                except flow_stage.FlowSetupError as e:
+                    print(f"[probe] {acc}: {e} — dilewati", flush=True)
+                    continue
+                caps[acc] = info
+                with open(caps_file, "w", encoding="utf-8") as fh:
+                    json.dump(caps, fh)
+            sec = info["seconds"]
+            biaya_acc = info["cost"] or flow_stage.COST
+            if bal is not None and bal < biaya_acc:
+                print(
+                    f"[kredit] {acc}: {bal} < {biaya_acc} — dilewati",
+                    flush=True,
+                )
+                continue
+            kandidat_durasi.append(
+                (0 if sec == flow_stage.SECONDS else 1, acc, sec, biaya_acc)
+            )
+            if sec == flow_stage.SECONDS:
+                break  # 13 dtk + kredit cukup = jawaban terbaik
+        if not kandidat_durasi:
+            raise SystemExit(
+                "TIDAK ADA AKUN yang lolos probe Flow (cap durasi/kredit). "
+                "Coba lagi setelah kredit reset, atau paksa --seconds."
+            )
+        _, args.account, args.seconds, biaya = min(kandidat_durasi)
+        print(
+            f"probe    : pilih {args.account} — {args.seconds} dtk, {biaya} kredit",
+            flush=True,
+        )
+
+    kind, prompt_file = classify(product, model, args.seconds)
     if not os.path.exists(prompt_file):
         raise SystemExit(f"prompt referensi tidak ada: {prompt_file}")
 
@@ -165,6 +244,7 @@ def main():
 
     print(f"akun    : {args.account}")
     print(f"jenis   : {kind}  ({os.path.basename(prompt_file)})")
+    print(f"durasi  : {args.seconds} dtk (biaya ~{biaya} kredit)")
     print(f"folder  : {out_dir}", flush=True)
 
     if args.visible:
@@ -221,8 +301,7 @@ def main():
                 "Kemungkinan kuota gambar harian tiap akun sudah habis — "
                 "coba lagi besok."
             )
-        args.account = akun_gemini
-        summary["account"] = akun_gemini
+        summary["gemini_account"] = akun_gemini
         summary["gemini"] = g
         print(
             f"gemini  : {g['images_attached']} gambar, storyboard "
@@ -277,16 +356,24 @@ def main():
         for acc in urutan:
             if acc in dicoba:
                 continue
+            info = caps.get(acc)
+            if info and info["seconds"] < args.seconds:
+                print(
+                    f"[durasi] {acc}: cap {info['seconds']} dtk "
+                    f"< {args.seconds} dtk — dilewati",
+                    flush=True,
+                )
+                continue
             if acc not in saldo:
                 saldo[acc] = cc.account_balance(acc)
             bal, reset, note = saldo[acc]
             if bal is None:
                 print(f"[kredit] {acc}: {note} — dilewati", flush=True)
                 continue
-            if bal >= COST:
+            if bal >= biaya:
                 return acc, bal, reset
             print(
-                f"[kredit] {acc}: {bal} kredit < {COST} "
+                f"[kredit] {acc}: {bal} kredit < {biaya} "
                 f"(reset {reset or '?'}) — dilewati",
                 flush=True,
             )
@@ -300,7 +387,8 @@ def main():
     if not attempt:
         raise SystemExit(
             "\nSEMUA AKUN KREDIT HABIS.\n"
-            f"Butuh {COST} kredit per video (Omni 1.2, 13 dtk, 720p, x1).\n"
+            f"Butuh {biaya} kredit per video (Omni 1.2, {args.seconds} dtk, "
+            "720p, x1).\n"
             "Kredit reset bulanan — tunggu tanggal reset, atau upgrade paket "
             "Google AI pada akun yang diinginkan."
         )
@@ -320,7 +408,9 @@ def main():
                 timeout=args.timeout,
                 visible=args.visible,
                 downloads_dir=DL_DIR,
+                seconds=args.seconds,
             )
+            summary["account"] = acc  # yang benar-benar membayar
             break
         except flow_stage.FlowSetupError as e:
             gagal.append((acc, str(e)))

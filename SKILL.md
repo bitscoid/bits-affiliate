@@ -27,7 +27,9 @@ product.jpg (+ model.jpg?)
   [1] GEMINI  --> STORYBOARD.jpeg + FLOW.md   (0 credits)
         |
         v
-  [2] FLOW    --> <slug>.mp4                  (48 credits, 9:16 Omni 1.2 720p 13s x1)
+  [2] FLOW    --> <slug>.mp4                  (9:16 Omni 1.2 720p x1; 13s if the
+                                               account supports it, else 10s; cost
+                                               read from the composer chip)
 ```
 
 ## Install
@@ -66,6 +68,7 @@ bits-affiliate --product /path/product.jpg [--model /path/model.jpg]
 | `--slug name` | output folder; default derived from the title |
 | `--account email` | account for stage 1; stage 1 auto-rotates up to 3 accounts when one fails (daily image quota is real); stage 2 auto-switches on credits |
 | `--mode Auto` | Gemini model mode — only for accounts whose picker exposes it (A/B: some accounts only have Hydrogen / Otomatis); the code logs and continues with the account's setting when the item is missing |
+| `--seconds 10\|13` | force the video duration, skipping the auto probe (use with `--skip-gemini` when the existing artifacts were built for that duration) |
 | `--timeout 900` | per-stage wait budget in seconds; keep >= 900 |
 | `--skip-gemini` | reuse existing STORYBOARD.jpeg + FLOW.md |
 | `--skip-flow` | stop after Gemini (0 credits spent) |
@@ -122,9 +125,10 @@ Failure handling, `ATTEMPTS = 2` with a fresh conversation each attempt:
 3. Duration slider `input.mdc-slider__input`: raw value = seconds − 3
    (13 s → set **10**). The slider's `max` attribute is read first —
    duration caps vary per account tier (not visible from any plan
-   label); an account whose max is below 13 s is rejected via
-   `FlowSetupError` (rotated away, zero credits) BEFORE the value is
-   set. Verify the composer chip says `13 dtk`.
+   label); an account whose max is below the chosen duration is
+   rejected via `FlowSetupError` (rotated away, zero credits) BEFORE
+   the value is set. Verify the composer chip says the chosen
+   duration (`13 dtk` or `10 dtk`).
 4. Upload `STORYBOARD.jpeg` via the ingredients panel, then **click the
    thumbnail / "Add to prompt"** — uploading alone attaches nothing; verify
    the ingredient chip exists.
@@ -138,7 +142,9 @@ Failure handling, `ATTEMPTS = 2` with a fresh conversation each attempt:
    credits). The finished file is copied from the downloads folder to
    `./<slug>/<slug>.mp4` (detected by stable size across two polls).
 
-Locked video spec — no fallbacks on model, resolution, or duration:
+Adaptive video spec — model, resolution, aspect, and outputs are
+locked; DURATION is measured per account via a Flow probe (Phase 0,
+zero credits — stops before upload/prompt/billing):
 
 | Rule | Value |
 |---|---|
@@ -146,9 +152,17 @@ Locked video spec — no fallbacks on model, resolution, or duration:
 | Aspect | 9:16 |
 | Model | Omni 1.2 Flash |
 | Resolution | 720p |
-| Duration | 13 s (slider raw = seconds − 3) |
+| Duration | 13 s preferred, 10 s fallback — per the account's slider `max` (raw = seconds − 3) |
 | Outputs | x1 (Flow defaults to x2; must be zeroed) |
-| Cost | 48 credits |
+| Cost | read from the composer chip at probe time (13 s ≈ 48 credits; 10 s cheaper) |
+
+Phase 0 walks accounts by balance (richest first): reads the cached
+`~/.config/bits-affiliate/caps.json` or probes the account, picks
+13 s when any affordable account supports it, otherwise the best
+10 s account. The chosen duration selects the matching Gemini prompt
+template (`*-10.md` variants carry 10 s beat timecodes), so the
+storyboard is always designed for the duration Flow will actually
+render. Cache lives until deleted — delete `caps.json` to re-probe.
 
 Gemini writes six beats timed across 13 s, matching the Flow render
 exactly (the prompt templates carry the same spec).
