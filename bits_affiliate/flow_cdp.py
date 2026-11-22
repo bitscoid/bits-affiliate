@@ -101,11 +101,15 @@ def _ensure_display():
 
 
 def _spawn_xvfb():
-    """Nyalakan Xvfb :99 sekali; blokir sampai lock-nya muncul."""
+    """Nyalakan Xvfb :99 sekali; blokir sampai lock-nya muncul.
+
+    1440x900 = ukuran jendela Chrome (--window-size), supaya VNC menampilkan
+    persis jendela kerja tanpa ruang kosong.
+    """
     lock = "/tmp/.X99-lock"
     if not os.path.exists(lock):
         subprocess.Popen(
-            ["Xvfb", ":99", "-screen", "0", "1600x1000x24"],
+            ["Xvfb", ":99", "-screen", "0", "1440x900x24"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             start_new_session=True,
