@@ -687,8 +687,8 @@ async def _download_from_tile(c, downloads_dir, out_path, before, timeout=240):
       return 'open';
     })()
     """)
-    res = json.loads(r) if isinstance(r, str) and r.startswith("{") else {"err": r}
-    if "err" in res:
+    if r != "open":
+        res = json.loads(r) if isinstance(r, str) and r.startswith("{") else {"err": r}
         raise SystemExit(f"menu tile tidak terbuka: {res}")
     await asyncio.sleep(2)
     klik = await c.eval(r"""
