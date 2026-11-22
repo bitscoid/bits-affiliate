@@ -260,6 +260,12 @@ any label used by the code must have both language variants.
   aliases.
 - Prompts sent to Flow must be in English, even when storyboard overlay text
   is Indonesian.
+- Ingredient chips: only a chip inside `.prompt-ingredient-bar` that
+  CONTAINS an `<img>` is a real attachment. Flow also renders an
+  upload-progress chip (innerText 'cancel', no image) that fooled the
+  old global count — the pipeline paid for a prompt-only generation.
+  Closing the library panel with the Cancel button can DISCARD the
+  chip; Escape is safe. Attach by clicking the asset tile itself.
 - Flow logout during render is detected from `/about` and the
   "Buat dengan / Create with Google Flow" text — a session that dies mid-run
   must not look like a slow render.
