@@ -733,13 +733,29 @@ def run_stage(
         log(f"setelan jadi: {settings['chip']} | {settings['cost']}")
         log(f"upload storyboard: {os.path.basename(storyboard)}")
         await r.call(lambda conn: _upload(conn, storyboard), attempts=4)
+        # tulis prompt SEBELUM tempel bahan: laporan lapangan, paste teks
+        # bisa menghapus chip (editor Flow me-render ulang kotak prompt)
+        log(f"tulis prompt ({len(prompt)} char)")
+        await r.call(lambda conn: _type_prompt(conn, prompt), attempts=4)
         log("tempel bahan ke prompt")
         chips = await r.call(lambda conn: _attach(conn), attempts=4)
         if chips < 1:
+            await asyncio.sleep(3)
+            chips = await r.call(lambda conn: _attach(conn), attempts=4)
+        if chips < 1:
             raise FlowSetupError("bahan tidak menempel ke prompt")
         log(f"bahan menempel: {chips} chip")
-        log(f"tulis prompt ({len(prompt)} char)")
-        await r.call(lambda conn: _type_prompt(conn, prompt), attempts=4)
+        # verifikasi akhir SEBELUM bayar: teks dan chip harus ada dua-duanya
+        nchar = await r.call(
+            lambda conn: conn.eval(
+                "(document.querySelector('[contenteditable=\"true\"]')"
+                "?.innerText || '').length"
+            )
+        )
+        if nchar < 200:
+            raise FlowSetupError(
+                f"teks prompt hilang setelah tempel bahan ({nchar} char)"
+            )
 
         result = {"project": project, "settings": settings, "chips": chips}
         if dry_run:
