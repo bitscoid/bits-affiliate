@@ -1,6 +1,6 @@
 # Peta UI — Gemini & Flow
 
-Diselaraskan dengan kode: 22 Nov 2026 (v3.2.0). Dokumen ini **tidak dibaca
+Diselaraskan dengan kode: 22 Nov 2026 (v3.3.0). Dokumen ini **tidak dibaca
 kode** — hanya peta maintenance saat UI Google berubah. Sumber kebenaran ada di:
 
 - `bits_affiliate/gemini_stage.py` — tahap Gemini
@@ -74,12 +74,13 @@ Dialog onboarding/changelog ditutup dulu (`_dismiss`) sebelum klik apa pun.
 | Aspect | `crop_16_9 16:9`, `crop_landscape 4:3`, `crop_square 1:1`, `crop_portrait 3:4`, `crop_9_16 9:16` |
 | Model | dropdown `Pilih rangkaian model` / `Select model series` → **`Omni 1.2 Flash`**; fallback tombol ber-`arrow_drop_down` dengan teks Omni/Veo/Nano |
 | Resolusi | `360p info` / `720p` (skill memakai 720p) |
-| Durasi | slider `input.mdc-slider__input`, nilai mentah = **detik − 3** (13 dtk → nilai 10) |
+| Durasi | slider `input.mdc-slider__input`, nilai mentah = **detik − 3** (13 dtk → nilai 10). Atribut `max` slider = cap durasi akun; dibaca dulu — di bawah durasi target → `FlowSetupError` (rotasi akun, 0 kredit) |
 | Output | `x1` (default `x2`), `x2`, `x3`, `x4` |
-| Biaya | `.credit-cost-label` → `Pembuatan akan menggunakan N kredit` |
+| Biaya | `.credit-cost-label` → `Pembuatan akan menggunakan N kredit` / `Generating will use N credits` — di-parse `parse_cost()` untuk gate kredit |
 
-Setelah `Escape`, chip `.settings-trigger-button` harus memuat `13 dtk`. Kode
-hanya memvalidasi angka detiknya, bukan seluruh teks chip.
+Setelah `Escape`, chip `.settings-trigger-button` harus memuat durasi yang
+dipilih (`13 dtk` atau `10 dtk`). Kode hanya memvalidasi angka detiknya,
+bukan seluruh teks chip.
 
 Alias terpusat di `ALIASES` hanya untuk `Ingredients` (`Bahan`), `Upload media`
 (`Unggah media`), dan `Start` (`Mulai pembuatan` / `Start generation` / `Mulai`).

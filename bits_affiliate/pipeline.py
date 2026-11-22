@@ -2,7 +2,9 @@
 """bits-affiliate: foto produk (+ model) -> storyboard Gemini -> video Flow.
 
 Tahap 1  Gemini (/app): STORYBOARD.jpeg + FLOW.md
-Tahap 2  Google Flow: video 9:16, Omni 1.2 Flash, 720p, 13 dtk, x1 (48 kredit).
+Tahap 2  Google Flow: video 9:16, Omni 1.2 Flash, 720p, x1; durasi
+         adaptif — 13 dtk bila akun sanggup, selain itu 10 dtk (diukur
+         probe Flow, fase 0, tanpa kredit).
 
 Kredit kurang? Script otomatis pindah ke akun lain yang cukup.
 Semua akun habis? Berhenti dengan peringatan + tanggal reset.

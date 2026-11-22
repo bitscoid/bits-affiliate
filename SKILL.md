@@ -1,6 +1,6 @@
 ---
 name: bits-affiliate
-version: 3.2.0
+version: 3.3.0
 author: BITS
 license: internal
 description: >
@@ -116,7 +116,7 @@ Failure handling, `ATTEMPTS = 2` with a fresh conversation each attempt:
   (limits/refusals are written there). Attempt 2 drops the Create-image tool,
   because forcing image mode can swallow the text block.
 
-## Stage 2 — Flow (48 credits)
+## Stage 2 — Flow (13 s ≈ 48 credits; 10 s cheaper, measured at probe)
 
 1. `https://flow.google.com/` → **New project** (`.mdc-fab`); `/about` or
    `/?pli=` means the session is logged out.
@@ -164,8 +164,9 @@ template (`*-10.md` variants carry 10 s beat timecodes), so the
 storyboard is always designed for the duration Flow will actually
 render. Cache lives until deleted — delete `caps.json` to re-probe.
 
-Gemini writes six beats timed across 13 s, matching the Flow render
-exactly (the prompt templates carry the same spec).
+Gemini writes six beats timed across the chosen duration (13 s or
+10 s), matching the Flow render exactly — the matching template is
+selected automatically in Phase 0.
 
 Every step that talks to the page goes through the reconnecting CDP wrapper
 (`r.call`): Chrome drops the debugger socket during long waits, and a drop
@@ -226,8 +227,9 @@ any label used by the code must have both language variants.
 
 ## Pitfalls (all happened in the field)
 
-- Gemini stage costs 0 credits; the 48 credits are Flow-only. `--skip-flow`
-  exits before any credit check.
+- Gemini stage costs 0 credits; Flow credits are charged only at
+  "Mulai pembuatan" (~48 for 13 s, measured at probe time for 10 s).
+  `--skip-flow` exits before any credit check.
 - Gemini's file inputs are lazy — nothing in the DOM until "Upload & tools"
   is clicked.
 - Pick the storyboard by **rendered** size, not `naturalWidth` — the source
@@ -268,12 +270,13 @@ any label used by the code must have both language variants.
 |---|---|
 | `bits_affiliate/pipeline.py` | two-stage orchestrator, CLI, account fallback |
 | `bits_affiliate/gemini_stage.py` | stage 1: upload, prompt, waits, retries, storyboard + Flow prompt |
-| `bits_affiliate/flow_stage.py` | stage 2: settings, ingredients, generate, download; locked spec + `COST` |
+| `bits_affiliate/flow_stage.py` | stage 2: settings, ingredients, generate, download; adaptive duration (`pick_seconds`, `parse_cost`, `probe_account`) |
 | `bits_affiliate/flow_cdp.py` | CDP transport, per-account profiles, Chrome launch/kill, VNC |
 | `bits_affiliate/check_credits.py` | per-account credit balance reader |
 | `bits_affiliate/login_bench.py` | login workbench: status, open, add, verify, probe |
 | `bits_affiliate/__init__.py` | package version (read by pyproject) |
 | `bits_affiliate/__main__.py` | `python3 -m bits_affiliate` entry |
 | `tests/test_*.py` | unit tests, no Chrome needed |
-| `references/PROMPT-GEMINI-*.md` | the two Gemini prompts |
+| `references/PROMPT-GEMINI-*.md` | the Gemini prompts — 13 s pair and `*-10.md` 10 s pair (chosen by Phase 0) |
 | `references/UI-GEMINI-FLOW.md` | selector map for maintenance when Google changes the UI |
+| `~/.config/bits-affiliate/caps.json` | cached per-account Flow probe: supported duration + cost (delete to re-probe) |

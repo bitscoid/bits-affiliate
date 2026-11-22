@@ -50,8 +50,9 @@ def parse_cost(text):
 class FlowSetupError(SystemExit):
     """Gagal langkah Flow SEBELUM generate — aman untuk rotasi akun lain.
 
-    Setelah generate (48 kredit hangus), kegagalan render/unduh TIDAK boleh
-    memicu rotasi: akun lain berarti membakar 48 kredit lagi.
+    Setelah generate (biaya durasi terpilih hangus), kegagalan
+    render/unduh TIDAK boleh memicu rotasi: akun lain berarti membakar
+    biaya yang sama sekali lagi.
     """
 
 
