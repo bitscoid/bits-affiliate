@@ -199,7 +199,7 @@ async def _pick_mode(c, mode):
     if not label:
         return False
     alias = MODE_ALIASES.get(mode.lower(), re.escape(mode))
-    if re.search(rf"saat ini \w+|currently \w+", label, re.I):
+    if re.search(r"saat ini \w+|currently \w+", label, re.I):
         if re.search(alias, label, re.I):
             return True
     await c.eval(r"""
