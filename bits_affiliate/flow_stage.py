@@ -249,7 +249,20 @@ async def _upload(c, image_path):
     if not box:
         raise SystemExit("tombol bahan tidak ditemukan")
     await c.tap(*box)
-    await asyncio.sleep(3)
+    # panel library lambat, dan tap bisa salah kirim (menutup panel yang
+    # terlanjur terbuka, mis. setelah panel setelan) -> tunggu .upload-text
+    # dengan tap ulang, jangan sekali jalan lalu menyerah
+    ok = ""
+    for _ in range(6):
+        await asyncio.sleep(2)
+        ok = await c.eval("document.querySelector('.upload-text') ? 'yes' : 'no'")
+        if ok == "yes":
+            break
+        box = await _ingredients_button_box(c)
+        if box:
+            await c.tap(*box)
+    if ok != "yes":
+        raise SystemExit("panel bahan tidak menampilkan Upload media")
     r = await c.eval(r"""
     (() => {
       // the label sits in <span class="upload-text">; click its clickable parent
