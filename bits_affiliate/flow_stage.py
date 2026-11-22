@@ -57,9 +57,10 @@ class FlowSetupError(SystemExit):
 
 
 def log(msg):
-    """Progress goes to stderr so piping stdout through tail still shows it."""
+    """Progress (with wall-clock time) to stderr so piping stdout still shows it."""
     STEP[0] += 1
-    print(f"[flow {STEP[0]:02d}] {msg}", file=sys.stderr, flush=True)
+    stamp = time.strftime("%H:%M:%S")
+    print(f"[flow {STEP[0]:02d} {stamp}] {msg}", file=sys.stderr, flush=True)
 
 
 # Flow localises every label; click by stable class plus these aliases.
@@ -521,8 +522,10 @@ async def _press_escape(c):
 async def _wait_render(c, timeout=900, interval=8):
     """Poll the project page until the generated 9:16 clip thumbnail appears.
 
-    The clip's thumbnail is an ``/asb/`` image taller than wide. While waiting,
-    watch for a logout: an abandoned session must not look like a slow render.
+    The clip's thumbnail is an ``/asb/`` image taller than wide that lives
+    INSIDE a tile container — the storyboard chip in the prompt bar also
+    uses ``/asb/`` and must not match. While waiting, watch for a logout:
+    an abandoned session must not look like a slow render.
     """
     elapsed = 0
     while elapsed < timeout:
@@ -531,7 +534,8 @@ async def _wait_render(c, timeout=900, interval=8):
         (() => {
           const th = [...document.querySelectorAll('img')]
             .find((i) => /\/asb\//.test(i.src || '')
-                   && i.naturalHeight > i.naturalWidth);
+                   && i.naturalHeight > i.naturalWidth
+                   && i.closest('[class*=tile],[class*=card]'));
           const out = /flow\.google\.com\/(about|$)/.test(location.href)
             || /(Buat dengan|Create with) Google Flow/i
                  .test(document.body.innerText || '');
@@ -551,7 +555,7 @@ async def _wait_render(c, timeout=900, interval=8):
     raise SystemExit(f"render tidak selesai dalam {timeout}s")
 
 
-async def _open_clip_editor(c, tries=6):
+async def _open_clip_editor(c, tries=3):
     """Click the clip thumbnail to land on /edit/<clip-id>.
 
     Tanpa fallback "Semua media": daftar itu memuat clip project LAIN juga,
@@ -898,14 +902,24 @@ def run_stage(
             return await _wait_render(conn, timeout=timeout)
 
         await r.call(wait, attempts=10)
-        log("thumbnail clip muncul; buka editor")
+        log("thumbnail clip muncul; unduh via menu tile (editor sbg fallback)")
 
         before = set(os.listdir(downloads_dir))
 
-        async def open_edit(conn):
-            return await _open_clip_editor(conn)
+        async def dl_tile(conn):
+            return await _download_from_tile(
+                conn, downloads_dir, out_path, before, timeout=240
+            )
 
         try:
+            dl_info = await r.call(dl_tile, attempts=3)
+        except SystemExit as e:
+            # menu tile tidak tersedia di varian UI ini -> coba jalur editor
+            log(f"menu tile gagal ({e}); coba jalur editor")
+
+            async def open_edit(conn):
+                return await _open_clip_editor(conn, tries=3)
+
             clip_url = await r.call(open_edit, attempts=2)
             log(f"editor: {clip_url}")
 
@@ -915,22 +929,6 @@ def run_stage(
                 )
 
             dl_info = await r.call(dl, attempts=4)
-        except SystemExit as e:
-            # klik thumbnail sering sekadar membuka preview, bukan editor.
-            # Jalur terbukti: menu tile "Opsi lainnya -> Download -> 720p".
-            if "clip editor" not in str(e) and "thumbnail" not in str(e):
-                raise
-            log(
-                f"editor tidak terbuka ({e}); unduh dari menu tile"
-                " Opsi lainnya -> Download"
-            )
-
-            async def dl_tile(conn):
-                return await _download_from_tile(
-                    conn, downloads_dir, out_path, before, timeout=240
-                )
-
-            dl_info = await r.call(dl_tile, attempts=3)
 
         log(f"video terunduh: {dl_info['bytes'] // 1024} KB (via {dl_info['via']})")
 
