@@ -736,7 +736,7 @@ def run_stage(
         log("tempel bahan ke prompt")
         chips = await r.call(lambda conn: _attach(conn), attempts=4)
         if chips < 1:
-            raise SystemExit("bahan tidak menempel ke prompt")
+            raise FlowSetupError("bahan tidak menempel ke prompt")
         log(f"bahan menempel: {chips} chip")
         log(f"tulis prompt ({len(prompt)} char)")
         await r.call(lambda conn: _type_prompt(conn, prompt), attempts=4)
