@@ -1,6 +1,6 @@
 # Peta UI — Gemini & Flow
 
-Diselaraskan dengan kode: 22 Nov 2026 (v3.3.0). Dokumen ini **tidak dibaca
+Diselaraskan dengan kode: 22 Nov 2026 (v3.3.1). Dokumen ini **tidak dibaca
 kode** — hanya peta maintenance saat UI Google berubah. Sumber kebenaran ada di:
 
 - `bits_affiliate/gemini_stage.py` — tahap Gemini
@@ -18,7 +18,7 @@ memakai class/aria-label yang stabil; teks label bisa berubah bahasa.
 | Tombol upload | `button` dengan aria-label cocok `/upload (& )?alat\|upload .*(and )?tools?/i` (label `Upload & alat` / `Upload files and tools`) |
 | Input file | `input[type=file][accept*="image"]` |
 | Kirim | `button` aria-label cocok `/kirim pesan\|send message/i` |
-| Menu upload | `Upload file`, `Tambahkan dari Drive`, `Upload lainnya`, **`Buat gambar` / `Create images`**, `Buat Video`, `Alat lainnya` (item render lambat — dipolling 5×1 dtk) |
+| Menu upload | `Upload file`, `Tambahkan dari Drive`, `Upload lainnya`, `Buat Video`, `Alat lainnya` (item render lambat — dipolling 5×1 dtk). Item `Buat gambar / Create images` **tidak dipakai pipeline** |
 
 **Penting:** `input[type=file]` **tidak ada** di DOM sampai menu upload diklik.
 Jumlah dan urutan input tidak diandalkan — pilih yang `accept`-nya memuat
@@ -105,11 +105,12 @@ Flow menampilkan `Peringatan poin tidak cukup`, script berhenti sebelum generate
 | Menu upload | `.upload-text` atau teks `Upload media` / `Unggah media` |
 | File chooser | `Page.setInterceptFileChooserDialog` → `Page.fileChooserOpened` → `DOM.setFileInputFiles(backendNodeId)` |
 | Thumbnail aset | `.asset-thumbnail` |
-| Tempel ke prompt | tombol `Tambahkan ke perintah` / `Add to prompt`; fallback klik `.asset-thumbnail` / `img.thumbnail` |
-| Bukti menempel | `flow-ingredient-chip` / `.reference-ingredient-chip` |
+| Tempel ke prompt | **klik `.asset-thumbnail`** (closest `button,[role="button"],.upload-item`) — tombol `Tambahkan ke perintah / Add to prompt` bisa no-op, jangan diandalkan |
+| Bukti menempel | chip di `.prompt-ingredient-bar` (`flow-ingredient-chip`) **yang mengandung `<img>`** — chip progress-upload (innerText `cancel`, tanpa gambar) bukan bukti |
 
-Upload hanya menaruh berkas di library project; **klik thumbnail atau tombol**
-untuk menjadikannya bahan. Panel ditutup dengan `Cancel`/`Batal`/`Tutup`/`Close`.
+Upload hanya menaruh berkas di library project; klik thumbnail untuk
+menjadikannya bahan. Panel ditutup dengan **Escape** — tombol `Cancel` bisa
+membuang chip yang baru menempel.
 
 ### Hasil
 

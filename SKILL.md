@@ -1,6 +1,6 @@
 ---
 name: bits-affiliate
-version: 3.3.0
+version: 3.3.1
 author: BITS
 license: internal
 description: >
@@ -24,12 +24,14 @@ Two stages, fully driven over Chrome DevTools Protocol (CDP):
 product.jpg (+ model.jpg?)
         |
         v
+  [0] PROBE   --> account + duration (0 credits; 13 s preferred, 10 s fallback)
+        |
+        v
   [1] GEMINI  --> STORYBOARD.jpeg + FLOW.md   (0 credits)
         |
         v
-  [2] FLOW    --> <slug>.mp4                  (9:16 Omni 1.2 720p x1; 13s if the
-                                               account supports it, else 10s; cost
-                                               read from the composer chip)
+  [2] FLOW    --> <slug>.mp4                  (9:16 Omni 1.2 720p x1; cost read
+                                               from the composer chip)
 ```
 
 ## Install
@@ -78,6 +80,21 @@ bits-affiliate --product /path/product.jpg [--model /path/model.jpg]
 Output in `./<slug>/`: `STORYBOARD.jpeg`, `FLOW.md`, `<slug>.mp4`, `src/`
 (normalized input images). The folder is renamed once the AI title is known.
 The final summary is printed as JSON (paths are updated after the rename).
+
+## Phase 0 — Probe (0 credits, before anything)
+
+DURATION is measured, never assumed: caps vary per account tier and no plan
+label reveals them. Accounts are walked richest-first; each is either read
+from the cache `~/.config/bits-affiliate/caps.json` or probed (new Flow
+project → settings → read the slider's `max` + the cost chip; stops before
+upload/prompt/billing). 13 s wins when any affordable account supports it,
+otherwise the best 10 s account. The chosen duration selects the matching
+Gemini prompt template (`*-10.md` carries 10 s beat timecodes) so the
+storyboard is always designed for the duration Flow will actually render.
+Delete `caps.json` to re-probe.
+
+Locked regardless of duration: Ingredients mode, 9:16, 720p, x1, Omni 1.2
+Flash.
 
 ## Stage 1 — Gemini (0 credits)
 
@@ -129,8 +146,8 @@ Failure handling, `ATTEMPTS = 2` with a fresh conversation each attempt:
    the value is set. Verify the composer chip says the chosen
    duration (`13 dtk` or `10 dtk`).
 4. Upload `STORYBOARD.jpeg` via the ingredients panel, then **click the
-   thumbnail / "Add to prompt"** — uploading alone attaches nothing; verify
-   the ingredient chip exists.
+   asset thumbnail itself** — uploading alone attaches nothing; verify the
+   chip (see pitfalls).
 5. Paste `FLOW.md` into the prompt editor with `Input.insertText`.
 6. Click **Mulai pembuatan / Start generation**. A `prompt-warning-button`
    means the account cannot pay — a hard stop, then auto-switch accounts.
@@ -142,32 +159,6 @@ Failure handling, `ATTEMPTS = 2` with a fresh conversation each attempt:
    **720p Original size** (`270p GIF` / `720p` / `1080p Upscaled` /
    `4K Upscaled`). The finished file is copied from the downloads folder to
    `./<slug>/<slug>.mp4` (detected by stable size across two polls).
-
-Adaptive video spec — model, resolution, aspect, and outputs are
-locked; DURATION is measured per account via a Flow probe (Phase 0,
-zero credits — stops before upload/prompt/billing):
-
-| Rule | Value |
-|---|---|
-| Mode | Ingredients |
-| Aspect | 9:16 |
-| Model | Omni 1.2 Flash |
-| Resolution | 720p |
-| Duration | 13 s preferred, 10 s fallback — per the account's slider `max` (raw = seconds − 3) |
-| Outputs | x1 (Flow defaults to x2; must be zeroed) |
-| Cost | read from the composer chip at probe time (13 s ≈ 48 credits; 10 s cheaper) |
-
-Phase 0 walks accounts by balance (richest first): reads the cached
-`~/.config/bits-affiliate/caps.json` or probes the account, picks
-13 s when any affordable account supports it, otherwise the best
-10 s account. The chosen duration selects the matching Gemini prompt
-template (`*-10.md` variants carry 10 s beat timecodes), so the
-storyboard is always designed for the duration Flow will actually
-render. Cache lives until deleted — delete `caps.json` to re-probe.
-
-Gemini writes six beats timed across the chosen duration (13 s or
-10 s), matching the Flow render exactly — the matching template is
-selected automatically in Phase 0.
 
 Every step that talks to the page goes through the reconnecting CDP wrapper
 (`r.call`): Chrome drops the debugger socket during long waits, and a drop
@@ -229,47 +220,26 @@ any label used by the code must have both language variants.
 ## Pitfalls (all happened in the field)
 
 - Gemini stage costs 0 credits; Flow credits are charged only at
-  "Mulai pembuatan" (~48 for 13 s, measured at probe time for 10 s).
-  `--skip-flow` exits before any credit check.
-- Gemini's file inputs are lazy — nothing in the DOM until "Upload & tools"
-  is clicked.
-- Pick the storyboard by **rendered** size, not `naturalWidth` — the source
-  photo (1024×1024) renders as a 112 px thumbnail and beats the real
-  storyboard on natural size.
-- Detect downloads by **mtime**, not by filename — Chrome appends ` (1)` when
-  the same name already exists.
-- Gemini can stay silent for >5 minutes before the first token, and images
-  can appear before text grows. Both are progress; `STALL_ROUNDS = 36`
-  (6 min) and `--timeout >= 900` exist because of this.
-- Gemini sometimes resets the conversation instead of answering (page
-  collapses to ~300 chars). Detected, retried, then reported.
-- Replies are sometimes text-only (no image). Attempt 1 selects "Create
-  images" in the plus menu to prevent this; attempt 2 runs without it in
-  case the tool eats the Flow text block.
+  "Mulai pembuatan" (30 for 10 s, 48 for 13 s). `--skip-flow` exits
+  before any credit check.
 - Headless is the default. `--vnc` exists only to watch a run while
   debugging; VNC credentials live in `~/.config/bits-affiliate/vnc.passwd`
   and the runtime prints the connect hint.
 - Flow's file chooser is native: use `Page.setInterceptFileChooserDialog` +
   `DOM.setFileInputFiles`; there is no plain `<input type=file>`.
-- Upload ≠ attach in Flow: after uploading, click the thumbnail or "Add to
-  prompt" and confirm the ingredient chip.
-- The duration slider's raw value is seconds − 3, and the composer chip must
-  be re-read after the settings panel closes — it is the source of truth.
+- Ingredient chips: only a chip inside `.prompt-ingredient-bar` that
+  CONTAINS an `<img>` is a real attachment. Flow also renders an
+  upload-progress chip (innerText 'cancel', no image) that fooled the
+  old global count — the pipeline paid for a prompt-only generation.
+  Closing the library panel with the Cancel button can DISCARD the
+  chip; Escape is safe. Attach by clicking the asset tile itself —
+  the "Add to prompt" menu item can be a no-op.
 - Flow's UI follows the profile language. Selectors use stable classes
   (`.settings-trigger-button`, `.mdc-fab`, `.mat-button-toggle-button`,
   `.asset-thumbnail`) plus label alias tables; adding a language = adding
   aliases.
 - Prompts sent to Flow must be in English, even when storyboard overlay text
   is Indonesian.
-- Ingredient chips: only a chip inside `.prompt-ingredient-bar` that
-  CONTAINS an `<img>` is a real attachment. Flow also renders an
-  upload-progress chip (innerText 'cancel', no image) that fooled the
-  old global count — the pipeline paid for a prompt-only generation.
-  Closing the library panel with the Cancel button can DISCARD the
-  chip; Escape is safe. Attach by clicking the asset tile itself.
-- Flow logout during render is detected from `/about` and the
-  "Buat dengan / Create with Google Flow" text — a session that dies mid-run
-  must not look like a slow render.
 
 ## File map
 
