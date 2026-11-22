@@ -120,7 +120,11 @@ Failure handling, `ATTEMPTS = 2` with a fresh conversation each attempt:
 2. Settings via `.settings-trigger-button`: `Video` → `Ingredients (Bahan)`
    → `9:16` → `720p` → `x1` → model `Omni 1.2 Flash`.
 3. Duration slider `input.mdc-slider__input`: raw value = seconds − 3
-   (13 s → set **10**). Verify the composer chip says `13 dtk`.
+   (13 s → set **10**). The slider's `max` attribute is read first —
+   duration caps vary per account tier (not visible from any plan
+   label); an account whose max is below 13 s is rejected via
+   `FlowSetupError` (rotated away, zero credits) BEFORE the value is
+   set. Verify the composer chip says `13 dtk`.
 4. Upload `STORYBOARD.jpeg` via the ingredients panel, then **click the
    thumbnail / "Add to prompt"** — uploading alone attaches nothing; verify
    the ingredient chip exists.

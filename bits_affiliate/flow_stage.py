@@ -182,7 +182,24 @@ async def _open_settings(c):
 
 
 async def _set_duration(c):
-    """Slider durasi Omni 1.2: nilai mentah = detik - 3 (10 -> 13 dtk)."""
+    """Slider durasi Omni 1.2: nilai mentah = detik - 3 (10 -> 13 dtk).
+
+    Cap durasi beda-beda per akun (tier/eksperimen) — jangan ditebak dari
+    label langganan: baca atribut max slider (kebenaran mutlak) dan tolak
+    akun yang mentok SEBELUM ada biaya.
+    """
+    cap = await c.eval(
+        "(() => { const i = document.querySelector("
+        "'input.mdc-slider__input');"
+        " return i ? Number(i.max || 0) : null; })()"
+    )
+    if cap is None:
+        raise FlowSetupError("slider durasi tidak ditemukan (mode Video?)")
+    if cap < SECONDS - 3:
+        raise FlowSetupError(
+            f"akun ini durasi maksimal {cap + 3} dtk "
+            f"(butuh {SECONDS} dtk — tier akun tidak mendukung)"
+        )
     ok = await c.eval(
         r"""
     (() => {
