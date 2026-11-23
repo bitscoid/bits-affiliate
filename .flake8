@@ -1,4 +1,8 @@
 [flake8]
 max-line-length = 88
 extend-ignore = E203
+per-file-ignores =
+    bits_affiliate/prompts.py:E501
+    bits_affiliate/publish.py:E501
+    bits_affiliate/sources.py:E501
 exclude = .git,__pycache__,build,dist,.venv,.eggs

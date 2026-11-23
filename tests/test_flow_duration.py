@@ -30,12 +30,33 @@ ok(flow_stage.parse_cost("Generating akan menggunakan 36 kredit") == 36, "ID 36"
 ok(flow_stage.parse_cost("Video · 720p · 13s crop_9_16 x1") == 0, "tanpa angka biaya")
 ok(flow_stage.parse_cost("") == 0, "kosong")
 
-# classify: template mengikuti durasi
-ok(pipeline.classify("p", "m", 13)[1] == pipeline.PROMPT_MODEL, "13 dtk -> model")
-ok(pipeline.classify("p", None, 13)[1] == pipeline.PROMPT_ONLY, "13 dtk -> only")
-ok(pipeline.classify("p", "m", 10)[1] == pipeline.PROMPT_MODEL_10, "10 dtk -> model-10")
-ok(pipeline.classify("p", None, 10)[1] == pipeline.PROMPT_ONLY_10, "10 dtk -> only-10")
-for p in (pipeline.PROMPT_ONLY_10, pipeline.PROMPT_MODEL_10):
-    ok(os.path.exists(p), f"template ada: {os.path.basename(p)}")
+# classify: prompt mengikuti durasi dan ada/tidaknya foto model
+from bits_affiliate import prompts  # noqa: E402
+
+ok(
+    pipeline.classify("p", "m", 13)[0] == "product+model",
+    "13 dtk + model -> product+model",
+)
+ok(
+    pipeline.classify("p", None, 13)[0] == "product-only",
+    "13 dtk tanpa model -> product-only",
+)
+ok("exactly 13 seconds" in pipeline.classify("p", "m", 13)[1], "13 dtk -> spec 13")
+ok("exactly 10 seconds" in pipeline.classify("p", None, 10)[1], "10 dtk -> spec 10")
+ok(
+    "Wardrobe continuity lock" in pipeline.classify("p", "m", 13)[1],
+    "model -> aturan wardrobe",
+)
+ok(
+    "Wardrobe continuity lock" not in pipeline.classify("p", None, 13)[1],
+    "tanpa model -> no wardrobe",
+)
+# durasi tak dikenal jatuh ke default, tidak meledak
+ok(
+    "exactly 13 seconds" in pipeline.classify("p", None, 99)[1],
+    "durasi aneh -> default aman",
+)
+for d in (13, 10):
+    ok(d in prompts.SPEC, f"spec {d} dtk tersedia")
 
 print(f"{lulus}/{lulus} lulus")

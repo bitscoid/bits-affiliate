@@ -1,8 +1,8 @@
 ---
 name: bits-affiliate
-version: 3.3.1
+version: 3.5.0
 author: BITS
-license: internal
+license: MIT
 description: >
   Affiliate video pipeline in two stages: Gemini turns a product photo (and an
   optional model photo) into a storyboard image + a Google Flow prompt, then
@@ -43,15 +43,19 @@ pip install -e <skill-dir>
 Requirements: Python >= 3.10, `websockets>=12` (installed by pip), Google
 Chrome (binary path override: `FLOW_CHROME=/path/to/chrome`), `ffmpeg` and
 `ffprobe` on PATH. Console scripts after install: `bits-affiliate`,
-`bits-credits`, `bits-login`. Without install, run from the skill folder:
-`python3 -m bits_affiliate ...`.
+`bits-credits`, `bits-login`, `bits-publish`, `bits-sources`. Without install,
+run from the skill folder: `python3 -m bits_affiliate ...`.
 
 ## Inputs
 
-| User provides | Gemini prompt used | Images sent |
+| User provides | Prompt built by | Images sent |
 |---|---|---|
-| product.jpg only | `references/PROMPT-GEMINI-PRODUCT-ONLY.md` | 1 |
-| product.jpg + model.jpg | `references/PROMPT-GEMINI-PRODUCT-MODEL.md` | 2 |
+| product.jpg only | `prompts.render_prompt("product-only", s)` | 1 |
+| product.jpg + model.jpg | `prompts.render_prompt("product+model", s)` | 2 |
+
+The two prompt templates live in `bits_affiliate/prompts.py`; the duration-dependent
+block (beat timecodes, word budget, VO end point) is `prompts.SPEC[seconds]`. Adding
+a duration means adding one `SPEC` entry, not copying a file.
 
 Identify images **by content**, never by argument order. Files are validated
 by magic bytes and converted to JPEG when needed (a saved HTML page named
@@ -60,9 +64,12 @@ by magic bytes and converted to JPEG when needed (a saved HTML page named
 ## Usage
 
 ```bash
-cd <workdir>
-bits-affiliate --product /path/product.jpg [--model /path/model.jpg]
+# Bahan dari /root/Projects/Sources, hasil ke /root/Projects/<slug>/<slug>.mp4
+bits-affiliate --product /root/Projects/Sources/product.jpg [--model /root/Projects/Sources/model.jpg]
 ```
+
+Run it from anywhere: results default to `/root/Projects` (`--out` overrides). There is
+no `cd <workdir>` requirement and no nested `<slug>/<slug>/` folder.
 
 | Flag | Meaning |
 |---|---|
@@ -75,13 +82,81 @@ bits-affiliate --product /path/product.jpg [--model /path/model.jpg]
 | `--skip-gemini` | reuse existing STORYBOARD.jpeg + FLOW.md |
 | `--skip-flow` | stop after Gemini (0 credits spent) |
 | `--dry-run` | Flow stops right before spending credits |
+| `--out DIR` | parent folder for results (default `/root/Projects`, or cwd when that folder does not exist) |
 | `--vnc` | TEST MODE: visible Chrome on Xvfb `:99` + x11vnc :5900 (watch the run); default is headless |
 
-Output in `./<slug>/`: `STORYBOARD.jpeg`, `FLOW.md`, `<slug>.mp4`, `src/`
-(normalized input images). The folder is renamed once the AI title is known.
-The final summary is printed as JSON (paths are updated after the rename).
+Output in `<out>/<slug>/`: `STORYBOARD.jpeg`, `FLOW.md`, `<slug>.mp4`, `sumber.json`,
+`publish.txt`.
 
-## Phase 0 — Probe (0 credits, before anything)
+**`publish.txt` dibuat otomatis** oleh `bits_affiliate/publish.py`, didaftarkan pada
+`atexit` di pipeline — jadi setiap run (sukses, `--skip-flow`, `--dry-run`,
+`SystemExit`) meninggalkan caption siap Buffer. Bentuknya sengaja sama dengan video
+BITS lain (`/root/Videos/<slug>/output/publish.txt`): header 6 baris `# ` + blok
+`=== TikTok`, `=== Instagram Reels`, `=== YouTube Shorts`. Dengan begitu
+`buffer-rencana-penuh.py` membacanya tanpa perubahan apa pun.
+
+Isinya diturunkan dari bahan yang ada, bukan dikarang: deskripsi dari naskah VO
+(`vo/naskah.txt`, maksimal 45 kata), judul dari kalimat penutup naskah, dan tagar
+dari tema yang Terdeteksi (parfum, perawatan, fashion, rumah, gadget) dengan
+`umum` sebagai cadangan supaya caption tidak pernah gagal terbit. Nominal harga
+dan CTA "Hubungi kami" tidak pernah ditulis — aturan BITS.
+
+`# STATUS` jujur: `BELUM-ADA-VIDEO` bila mp4 belum ada (mis. run berhenti sebelum
+Flow), supaya rencana Buffer tidak menjadwalkan berkas yang tidak ada. Tulis ulang
+caption kapan saja tanpa render ulang:
+
+```bash
+bits-publish <slug>              # tulis ulang publish.txt dari sumber.json + naskah
+bits-publish <slug> --channel "BITS Living" --status SIAP
+```
+
+Video affiliate ikut masuk rencana Buffer otomatis: `buffer-rencana-penuh.py`
+memindai `/root/Videos` DAN `/root/Projects`, dan URL asetnya memakai jalur
+`https://videos.bits.co.id/affiliates/<slug>/<slug>.mp4`.
+**No `src/`** — input images are read straight from where they live (normally
+`/root/Projects/Sources/`), never copied or modified in place; any PNG/WebP
+conversion happens in a throwaway temp dir that is deleted on exit. The folder is
+renamed once the AI title is known. The final summary is printed as JSON (paths
+are updated after the rename).
+
+`sumber.json` is written by the pipeline itself on every exit (success, `--dry-run`,
+`SystemExit`): it records `slug`, `waktu`, `berkas` (the basenames actually used),
+`perintah`, and `exit`. `bits-sources bersihkan` reads it to decide which materials
+are safe to delete — never guess from folder names.
+
+### Cleanup is automatic
+
+The pipeline registers `fc.cleanup_all` via `atexit`, so Chrome, Xvfb `:99`, x11vnc,
+and the keyring dbus daemon left behind by the run are stopped on **every** exit
+path. Field evidence: a *successful* `--skip-flow` run left 12 Chrome processes
+alive. The cleanup only touches this skill's own processes — it refuses to kill any
+command line containing `hermes-snap` or `cache/scratch` (those are the operator's
+own shell). Call it by hand only if you drove `flow_cdp` directly:
+
+```bash
+python3 -c "from bits_affiliate import flow_cdp as fc; fc.cleanup_all()"
+```
+
+## Sources (WhatsApp attachments → `/root/Projects/Sources`)
+
+```bash
+bits-sources status             # what is waiting, what is finished
+bits-sources ambil              # move new cache images into Sources
+bits-sources ambil --dry-run    # report only
+bits-sources bersihkan          # delete Sources contents once a project finished
+bits-sources bersihkan --dry-run
+```
+
+Each file lands with an entry in `Sources/manifest.json` recording its origin
+(`document` = untouched quality, `photo` = WhatsApp-compressed). `.heic/.heif` are
+refused. `bersihkan` refuses to run while no project has finished, so materials are
+never wiped mid-production.
+
+## Credits — one rule, stated once
+
+Gemini is free; Flow charges only when **Mulai pembuatan / Start generation** is
+clicked: **30 credits for 10 s, 48 credits for 13 s**. Probe and `--dry-run` stop
+before that click, and `--skip-flow` never reaches it — so all three cost 0.
 
 DURATION is measured, never assumed: caps vary per account tier and no plan
 label reveals them. Accounts are walked richest-first; each is either read
@@ -89,7 +164,7 @@ from the cache `~/.config/bits-affiliate/caps.json` or probed (new Flow
 project → settings → read the slider's `max` + the cost chip; stops before
 upload/prompt/billing). 13 s wins when any affordable account supports it,
 otherwise the best 10 s account. The chosen duration selects the matching
-Gemini prompt template (`*-10.md` carries 10 s beat timecodes) so the
+`prompts.SPEC[seconds]` block (beat timecodes + word budget) so the
 storyboard is always designed for the duration Flow will actually render.
 Delete `caps.json` to re-probe.
 
@@ -212,6 +287,8 @@ python3 tests/test_check_credits.py   # ID/EN parsers + CLI contract
 python3 tests/test_flow_duration.py   # adaptive duration: pick/parse/template
 python3 tests/test_gemini_stage.py    # storyboard grab, waits, retries
 python3 tests/test_login_bench.py     # --add/--done/--check behavior
+python3 tests/test_prompt_render.py   # rendered prompts == the legacy 4 files
+python3 tests/test_publish.py         # publish.txt shape, tags, honest status
 python3 tests/test_ui_labels.py       # every UI label exists in ID AND EN
 ```
 
@@ -220,9 +297,6 @@ any label used by the code must have both language variants.
 
 ## Pitfalls (all happened in the field)
 
-- Gemini stage costs 0 credits; Flow credits are charged only at
-  "Mulai pembuatan" (30 for 10 s, 48 for 13 s). `--skip-flow` exits
-  before any credit check.
 - Headless is the default. `--vnc` exists only to watch a run while
   debugging; VNC credentials live in `~/.config/bits-affiliate/vnc.passwd`
   and the runtime prints the connect hint.
@@ -246,15 +320,16 @@ any label used by the code must have both language variants.
 
 | File | Role |
 |---|---|
-| `bits_affiliate/pipeline.py` | two-stage orchestrator, CLI, account fallback |
+| `bits_affiliate/pipeline.py` | two-stage orchestrator, CLI, account fallback, `sumber.json`, cleanup hook |
+| `bits_affiliate/prompts.py` | storyboard prompts: 2 templates + `SPEC[seconds]` (duration block) |
 | `bits_affiliate/gemini_stage.py` | stage 1: upload, prompt, waits, retries, storyboard + Flow prompt |
 | `bits_affiliate/flow_stage.py` | stage 2: settings, ingredients, generate, download; adaptive duration (`pick_seconds`, `parse_cost`, `probe_account`) |
-| `bits_affiliate/flow_cdp.py` | CDP transport, per-account profiles, Chrome launch/kill, VNC |
+| `bits_affiliate/flow_cdp.py` | CDP transport, per-account profiles, Chrome launch/kill, VNC, `cleanup_all()` |
+| `bits_affiliate/sources.py` | `bits-sources`: move WhatsApp attachments into `Sources/`, clean up when done |
 | `bits_affiliate/check_credits.py` | per-account credit balance reader |
 | `bits_affiliate/login_bench.py` | login workbench: status, open, add, verify, probe |
 | `bits_affiliate/__init__.py` | package version (read by pyproject) |
 | `bits_affiliate/__main__.py` | `python3 -m bits_affiliate` entry |
+| `references/UI-GEMINI-FLOW.md` | UI selector reference for Gemini and Flow pages |
 | `tests/test_*.py` | unit tests, no Chrome needed |
-| `references/PROMPT-GEMINI-*.md` | the Gemini prompts — 13 s pair and `*-10.md` 10 s pair (chosen by Phase 0) |
-| `references/UI-GEMINI-FLOW.md` | selector map for maintenance when Google changes the UI |
 | `~/.config/bits-affiliate/caps.json` | cached per-account Flow probe: supported duration + cost (delete to re-probe) |

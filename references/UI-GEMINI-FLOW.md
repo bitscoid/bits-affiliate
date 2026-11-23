@@ -1,6 +1,6 @@
 # Peta UI — Gemini & Flow
 
-Diselaraskan dengan kode: 22 Nov 2026 (v3.3.1). Dokumen ini **tidak dibaca
+Diselaraskan dengan kode: 23 Nov 2026 (v3.5.0). Dokumen ini **tidak dibaca
 kode** — hanya peta maintenance saat UI Google berubah. Sumber kebenaran ada di:
 
 - `bits_affiliate/gemini_stage.py` — tahap Gemini
@@ -107,8 +107,8 @@ Flow menampilkan `Peringatan poin tidak cukup`, script berhenti sebelum generate
 |---|---|
 | Menu upload | `.upload-text` atau teks `Upload media` / `Unggah media` |
 | File chooser | `Page.setInterceptFileChooserDialog` → `Page.fileChooserOpened` → `DOM.setFileInputFiles(backendNodeId)` |
-| Thumbnail aset | `.asset-thumbnail` |
-| Tempel ke prompt | **klik `.asset-thumbnail`** (closest `button,[role="button"],.upload-item`) — tombol `Tambahkan ke perintah / Add to prompt` bisa no-op, jangan diandalkan |
+| Thumbnail aset | `.asset-thumbnail`; **siap diklik** = `<img>`-nya termuat (`img.complete && naturalWidth > 0`) — thumbnail muncul sejak upload MULAI, klik sebelum img termuat adalah no-op (dipolling 15×1 dtk) |
+| Tempel ke prompt | **klik `.asset-thumbnail`** (closest `button,[role="button"],.upload-item`) — tombol `Tambahkan ke perintah / Add to prompt` bisa no-op, jangan diandalkan; chip belum mendarat → klik ulang di detik ke-9/18 (aset lambat diproses) |
 | Bukti menempel | chip di `.prompt-ingredient-bar` (`flow-ingredient-chip`) **yang mengandung `<img>`** — chip progress-upload (innerText `cancel`, tanpa gambar) bukan bukti |
 
 Upload hanya menaruh berkas di library project; klik thumbnail untuk

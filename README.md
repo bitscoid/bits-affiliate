@@ -3,9 +3,9 @@
 > **Product photo → Gemini storyboard → Google Flow 9:16 video.**
 > Fully automated over Chrome DevTools Protocol. One command, one video.
 
-![Version](https://img.shields.io/badge/version-3.3.1-blue)
+![Version](https://img.shields.io/badge/version-3.5.0-blue)
 ![Python](https://img.shields.io/badge/python-3.10%2B-informational)
-![Tests](https://img.shields.io/badge/tests-66%2F66-brightgreen)
+![Tests](https://img.shields.io/badge/tests-128%2F128-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Status](https://img.shields.io/badge/status-production%20ready-success)
 
@@ -63,19 +63,27 @@ one-time step per account.
 ### 3. Make a video 🎥
 
 ```bash
-cd <workdir>
-bits-affiliate --product product.jpg --model model.jpg
+bits-affiliate --product /root/Projects/Sources/product.jpg \
+               --model /root/Projects/Sources/model.jpg
 ```
+
+Results land in `/root/Projects/<slug>/` (override the parent with `--out DIR`).
+Run it from anywhere — no `cd` needed, no nested `<slug>/<slug>/`.
 
 Output:
 
 ```
-<slug>/
+/root/Projects/<slug>/
 ├── STORYBOARD.jpeg    # AI-designed storyboard sheet
 ├── FLOW.md            # the Flow prompt Gemini wrote
 ├── <slug>.mp4         # 🎬 the video (720×1280, 13 s or 10 s)
-└── src/               # normalized input images
+├── sumber.json        # provenance: which input files were used (exit code included)
+└── publish.txt        # Buffer-ready caption (TikTok / Reels / Shorts blocks)
 ```
+
+Input images are read straight from `/root/Projects/Sources/` — there is no `src/`
+folder in the result. PNG/WebP conversion happens in a throwaway temp dir that is
+deleted when the process exits.
 
 ---
 
@@ -87,6 +95,7 @@ Output:
 | `--model path` | model photo — enables the product+model storyboard |
 | `--title "text"` | video title; empty = AI picks it from the storyboard |
 | `--slug name` | output folder name |
+| `--out DIR` | parent folder for results (default `/root/Projects`) |
 | `--account email` | starting account (default: first registered) |
 | `--seconds 10\|13` | force duration, skipping the auto probe |
 | `--mode Auto` | Gemini model mode, when the account exposes it |
@@ -99,9 +108,16 @@ Output:
 Companion tools:
 
 ```bash
-bits-credits 48       # which accounts can pay for one video?
-bits-login            # account status board
+bits-sources status    # WhatsApp attachments waiting in the cache, finished projects
+bits-sources ambil     # move them into /root/Projects/Sources (+ manifest.json)
+bits-sources bersihkan # empty Sources once a project has finished
+bits-publish <slug>    # rewrite publish.txt (caption) without re-rendering
+bits-credits 48        # which accounts can pay for one video?
+bits-login             # account status board
 ```
+
+Every run ends by stopping its own leftover processes (Chrome, Xvfb, x11vnc) via
+`flow_cdp.cleanup_all()`, registered with `atexit` in `pipeline.py`.
 
 ---
 
@@ -156,6 +172,8 @@ python3 tests/test_check_credits.py    # ID/EN credit parsers + CLI
 python3 tests/test_flow_duration.py    # adaptive duration + template selection
 python3 tests/test_gemini_stage.py     # storyboard grab, waits, retries
 python3 tests/test_login_bench.py      # login workbench contract
+python3 tests/test_prompt_render.py    # prompts byte-identical to the legacy files
+python3 tests/test_publish.py          # publish.txt shape, tags, honest status
 python3 tests/test_ui_labels.py        # bilingual UI label guard
 ```
 
@@ -169,14 +187,16 @@ exist in **both** Indonesian and English.
 ```
 bits-affiliate/
 ├── bits_affiliate/
-│   ├── pipeline.py          # two-stage orchestrator + CLI
+│   ├── pipeline.py          # two-stage orchestrator + CLI + sumber.json
+│   ├── prompts.py           # storyboard prompts: 2 templates + SPEC[seconds]
+│   ├── publish.py           # publish.txt builder (+ publish_cli.py = bits-publish)
 │   ├── gemini_stage.py      # stage 1: storyboard + Flow prompt
 │   ├── flow_stage.py        # stage 2: settings → render → download
-│   ├── flow_cdp.py          # CDP transport, profiles, Chrome, VNC
+│   ├── flow_cdp.py          # CDP transport, profiles, Chrome, VNC, cleanup_all()
+│   ├── sources.py           # bits-sources: Sources inbox + cleanup
 │   ├── check_credits.py     # credit balance reader (ID/EN)
 │   └── login_bench.py       # login workbench
 ├── references/
-│   ├── PROMPT-GEMINI-*.md   # Gemini prompts (13 s + 10 s pairs)
 │   └── UI-GEMINI-FLOW.md    # selector map for UI-drift maintenance
 ├── tests/                   # offline unit tests
 ├── SKILL.md                 # agent skill contract (OpenCode / Hermes)

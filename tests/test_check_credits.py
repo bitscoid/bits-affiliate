@@ -73,8 +73,13 @@ def test_reset_dt_menyeberang_tahun():
 
 def test_reset_soonest_by_date_not_alphabet():
     # Alfabet menaruh "23 Dec" sebelum "23 Nov"; urutan tanggal yang benar Nov.
-    assert cc.reset_dt("23 Dec pukul 05.00") > cc.reset_dt("23 Nov pukul 05.00")
-    assert cc.reset_dt("Dec 1 at 7:00 AM") > cc.reset_dt("Nov 23 at 8:22 AM")
+    # `now` disuntik: tanpa itu tes rapuh — begitu tanggal sistem melewati 23 Nov,
+    # reset itu dianggap tahun depan dan urutannya terbalik secara sah.
+    from datetime import datetime
+    now = datetime(2026, 11, 1, 9, 0)
+    assert cc.reset_dt("23 Dec pukul 05.00", now) > cc.reset_dt(
+        "23 Nov pukul 05.00", now)
+    assert cc.reset_dt("Dec 1 at 7:00 AM", now) > cc.reset_dt("Nov 23 at 8:22 AM", now)
 
 
 def test_parse_cli_positional_compat():

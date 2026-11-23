@@ -328,6 +328,70 @@ def stop_chrome(port=None):
     return not _pids_on_port(port)
 
 
+def cleanup_all(verbose=True):
+    """Hentikan SEMUA proses yang ditinggalkan skill ini.
+
+    Pipeline sering tidak menutup Chrome-nya sendiri: run sukses pun bisa
+    meninggalkan belasan proses (terbukti di lapangan). Sisa itu memakan RAM,
+    memicu "port sudah dipakai" di run berikutnya, dan menumpuk profil di /tmp.
+
+    Dipanggil otomatis di akhir pipeline.py, jadi berlaku untuk semua jalur
+    (skip-flow, dry-run, generate penuh, maupun gagal).
+
+    Hanya menyentuh proses milik skill ini — Hermes gateway, opencode, dan
+    Chrome proses lain tidak disentuh.
+    """
+    pola = (
+        ("chrome", os.path.join(HOME, "profiles")),
+        ("xvfb", "Xvfb :99"),
+        ("x11vnc", "x11vnc -display :99"),
+        ("dbus", "bits-affiliate-keyring"),
+    )
+    target = []
+    for pid in os.listdir("/proc"):
+        if not pid.isdigit():
+            continue
+        try:
+            with open(f"/proc/{pid}/cmdline", "rb") as f:
+                cmd = f.read().replace(b"\0", b" ").decode("utf-8", "replace")
+        except OSError:
+            continue
+        # jangan pernah membunuh shell pembungkus milik Hermes (sesi sendiri)
+        if "hermes-snap" in cmd or "cache/scratch" in cmd:
+            continue
+        for label, jarum in pola:
+            if jarum and jarum in cmd:
+                target.append((int(pid), label))
+                break
+
+    target = list(dict.fromkeys(target))
+    if not target:
+        if verbose:
+            print("bersih  : tidak ada proses sisa", flush=True)
+        return 0
+
+    for pid, _ in target:
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except OSError:
+            pass
+    time.sleep(1.5)
+    for pid, _ in target:
+        try:
+            os.kill(pid, 0)
+            os.kill(pid, signal.SIGKILL)
+        except OSError:
+            pass
+
+    if verbose:
+        jenis = {}
+        for _, label in target:
+            jenis[label] = jenis.get(label, 0) + 1
+        ringkas = ", ".join(f"{n} {k}" for k, n in sorted(jenis.items()))
+        print(f"bersih  : {len(target)} proses sisa dihentikan ({ringkas})", flush=True)
+    return len(target)
+
+
 def _pids_on_port(port):
     """PIDs of Chrome processes launched with this remote-debugging-port."""
     pids = []

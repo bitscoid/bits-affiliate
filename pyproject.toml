@@ -8,13 +8,15 @@ dynamic = ["version"]
 description = "Foto produk -> storyboard Gemini -> video Google Flow 9:16"
 readme = "SKILL.md"
 requires-python = ">=3.10"
-license = { text = "Proprietary" }
+license = { text = "MIT" }
 dependencies = ["websockets>=12"]
 
 [project.scripts]
 bits-affiliate = "bits_affiliate.pipeline:main"
 bits-credits = "bits_affiliate.check_credits:main"
 bits-login = "bits_affiliate.login_bench:main"
+bits-publish = "bits_affiliate.publish_cli:main"
+bits-sources = "bits_affiliate.sources:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.6", "flake8>=7"]
@@ -31,6 +33,13 @@ target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# Templat prompt & teks caption adalah prosa panjang, bukan logika —
+# pelipatan barisnya justru merusak keterbacaan sumber yang dikirim ke AI.
+"bits_affiliate/prompts.py" = ["E501"]
+"bits_affiliate/publish.py" = ["E501"]
+"bits_affiliate/sources.py" = ["E501"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["bits_affiliate"]

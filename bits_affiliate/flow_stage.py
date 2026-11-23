@@ -30,6 +30,7 @@ ASPECT = "9:16"
 RESOLUTION = "720p"
 OUTPUTS = 1
 COST = 48
+COST_MIN = 30  # biaya 10 dtk — batas bawah probe: di bawah ini tak ada yang terjangkau
 STEP = [0]
 
 

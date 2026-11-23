@@ -16,28 +16,26 @@ Contoh:
       --title "nama-video" \
       --account you@example.com
 
-Hasil di ./<slug>/: STORYBOARD.jpeg, FLOW.md, <slug>.mp4
+Hasil di /root/Projects/<slug>/ (atau --out): STORYBOARD.jpeg, FLOW.md,
+<slug>.mp4, sumber.json, publish.txt
 """
 
 import argparse
 import asyncio
+import atexit
 import json
 import os
 import re
+import shutil
 import subprocess as sp
 import sys
+import tempfile
 import time
+from datetime import datetime
 
 from . import check_credits as cc
 from . import flow_cdp as fc
-from . import flow_stage, gemini_stage
-
-HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-REF = os.path.join(HERE, "references")
-PROMPT_ONLY = os.path.join(REF, "PROMPT-GEMINI-PRODUCT-ONLY.md")
-PROMPT_MODEL = os.path.join(REF, "PROMPT-GEMINI-PRODUCT-MODEL.md")
-PROMPT_ONLY_10 = os.path.join(REF, "PROMPT-GEMINI-PRODUCT-ONLY-10.md")
-PROMPT_MODEL_10 = os.path.join(REF, "PROMPT-GEMINI-PRODUCT-MODEL-10.md")
+from . import flow_stage, gemini_stage, prompts, publish
 
 # Spec video adaptif: Omni 1.2 Flash, 720p, x1; durasi 13 dtk (48 kredit)
 # atau 10 dtk untuk akun ber-cap rendah — diukur via probe Flow (fase 0).
@@ -102,20 +100,58 @@ def slugify(text):
     return re.sub(r"[^a-z0-9]+", "-", (text or "").lower()).strip("-")[:60] or "project"
 
 
+HASIL_DEFAULT = "/root/Projects"
+
+
+def _hasil_induk(out=None):
+    """Folder induk hasil video: --out, atau /root/Projects bila ada, atau cwd.
+
+    Default /root/Projects disengaja: bahan tinggal di /root/Projects/Sources dan
+    hasilnya di /root/Projects/<slug>/<slug>.mp4, jadi satu tempat untuk masuk
+    dan keluar. Bila /root/Projects tidak ada (mis. mesin lain), pakai cwd.
+    """
+    if out:
+        os.makedirs(out, exist_ok=True)
+        return out
+    if os.path.isdir(HASIL_DEFAULT):
+        return HASIL_DEFAULT
+    return os.getcwd()
+
+
 def classify(product, model, seconds=flow_stage.SECONDS):
-    """Which reference prompt applies: product only, or product + model."""
-    if seconds != flow_stage.SECONDS:
-        return (
-            ("product+model", PROMPT_MODEL_10)
-            if model
-            else ("product-only", PROMPT_ONLY_10)
-        )
-    if model:
-        return "product+model", PROMPT_MODEL
-    return "product-only", PROMPT_ONLY
+    """Jenis storyboard + prompt untuk kombinasi bahan dan durasi.
+
+    `product` tidak dipakai untuk memilih template (yang menentukan hanya ada
+    atau tidaknya foto model), tapi tetap ada di tanda tangan karena pemanggil
+    meneruskan bahan secara berurutan.
+    """
+    kind = "product+model" if model else "product-only"
+    return kind, prompts.render_prompt(
+        kind, seconds if seconds in prompts.SPEC else flow_stage.SECONDS
+    )
 
 
 def main():
+    """Catat exit code sebenarnya lalu jalankan alurnya.
+
+    atexit tidak bisa melihat pengecualian yang sedang naik (exc_info sudah
+    bersih saat handler jalan), jadi kode keluar dicatat di sini sebelum
+    dilempar lagi — sumber.json tidak berbohong soal hasil run.
+    """
+    try:
+        _jalankan()
+    except SystemExit as e:
+        _EXIT["kode"] = e.code if isinstance(e.code, int) else 1
+        raise
+    except BaseException:
+        _EXIT["kode"] = 1
+        raise
+
+
+_EXIT = {"kode": 0}
+
+
+def _jalankan():
     p = argparse.ArgumentParser(
         description="Bahan produk (+ model) -> storyboard Gemini -> video Flow"
     )
@@ -126,6 +162,12 @@ def main():
         help="judul video; kosongkan agar AI isi dari konten storyboard",
     )
     p.add_argument("--slug", help="folder hasil; default dari --title")
+    p.add_argument(
+        "--out",
+        default=None,
+        help="folder induk hasil (default: /root/Projects, atau cwd bila "
+        "/root/Projects tidak ada)",
+    )
     p.add_argument(
         "--account",
         default=None,
@@ -178,12 +220,44 @@ def main():
         if args.title
         else slugify(os.path.splitext(os.path.basename(args.product))[0])
     )
-    out_dir = os.path.join(os.getcwd(), provisional)
+    out_dir = os.path.join(_hasil_induk(args.out), provisional)
+    # Jangan menimpa proyek lama tanpa disengaja. Lanjutan (--skip-gemini /
+    # --skip-flow / --dry-run) memang memakai artefak sebelumnya, jadi diizinkan;
+    # mulai dari nol dengan slug yang sudah terisi harus ditolak.
+    lanjutan = args.skip_gemini or args.skip_flow or args.dry_run
+    if os.path.isdir(out_dir) and os.listdir(out_dir) and not lanjutan:
+        raise SystemExit(
+            f"{out_dir} sudah ada dan tidak kosong — pakai --slug lain, "
+            f"atau tambahkan --skip-gemini untuk melanjutkan tahap Flow"
+        )
     os.makedirs(out_dir, exist_ok=True)
+    # Catat bahan yang dipakai apa pun hasilnya (sukses, dry-run, SystemExit),
+    # supaya `bersihkan` punya bukti dan tidak menghapus bahan yang masih
+    # dibutuhkan proyek lain.
+    atexit.register(catat_sumber, out_dir, args)
+    # publish.txt ikut ditulis sendiri: tanpa itu video affiliate tidak bisa
+    # dimasukkan ke rencana Buffer tanpa kerja manual. Didaftarkan setelah
+    # catat_sumber karena atexit berjalan LIFO — publish.txt perlu sumber.json
+    # (bahan + waktu) yang sudah ada.
+    atexit.register(catat_publish, out_dir, args)
 
-    work = os.path.join(out_dir, "src")
-    product = ensure_usable_image(args.product, work)
-    model = ensure_usable_image(args.model, work) if args.model else None
+    # Bahan dipakai LANGSUNG dari tempatnya (biasanya /root/Projects/Sources).
+    # Tidak ada folder `src/`: konversi PNG/WebP ditulis ke folder sementara di
+    # luar hasil, lalu dibuang — CEO tidak mau `src/` muncul di folder proyek.
+    work = tempfile.mkdtemp(prefix="bits-affiliate-")
+    # Dibersihkan saat proses selesai, termasuk pada SystemExit / error: folder
+    # ini hanya tempat konversi sementara, tidak boleh tertinggal di hasil.
+    atexit.register(shutil.rmtree, work, True)
+    # Chrome/Xvfb/x11vnc sering tidak tertutup sendiri (run sukses pun bisa
+    # meninggalkan belasan proses). Daftarkan sekali di awal supaya SETIAP jalan
+    # keluar — sukses, --skip-flow, --dry-run, SystemExit, Ctrl-C — bersih.
+    atexit.register(fc.cleanup_all)
+    try:
+        product = ensure_usable_image(args.product, work)
+        model = ensure_usable_image(args.model, work) if args.model else None
+    except BaseException:
+        shutil.rmtree(work, ignore_errors=True)
+        raise
 
     # ---- fase 0: probe Flow — ukur cap durasi + biaya per akun, lalu
     # pilih akun + durasi SEBELUM stage Gemini (template prompt ikut
@@ -213,7 +287,7 @@ def main():
             bal = saldo0[acc][0]
             info = caps.get(acc)
             if info is None:
-                if bal is not None and bal < flow_stage.MIN_SECONDS:
+                if bal is not None and bal < flow_stage.COST_MIN:
                     continue  # biaya termurah pun tak terjangkau
                 print(f"probe    : {acc} (ukur cap durasi + biaya)...", flush=True)
                 try:
@@ -248,15 +322,13 @@ def main():
             flush=True,
         )
 
-    kind, prompt_file = classify(product, model, args.seconds)
-    if not os.path.exists(prompt_file):
-        raise SystemExit(f"prompt referensi tidak ada: {prompt_file}")
+    kind, prompt = classify(product, model, args.seconds)
 
     storyboard = os.path.join(out_dir, "STORYBOARD.jpeg")
     flow_md = os.path.join(out_dir, "FLOW.md")
 
     print(f"akun    : {args.account}")
-    print(f"jenis   : {kind}  ({os.path.basename(prompt_file)})")
+    print(f"jenis   : {kind}  (prompt {args.seconds} dtk, {len(prompt)} char)")
     print(f"durasi  : {args.seconds} dtk (biaya ~{biaya} kredit)")
     print(f"folder  : {out_dir}", flush=True)
 
@@ -292,7 +364,7 @@ def main():
                 g = gemini_stage.run_stage(
                     acc,
                     images,
-                    prompt_file,
+                    prompt,
                     out_dir,
                     timeout=args.timeout,
                     visible=args.visible,
@@ -334,10 +406,10 @@ def main():
 
     final_slug = args.slug or slugify(title)
     if final_slug != provisional and not args.slug:
-        new_dir = os.path.join(os.getcwd(), final_slug)
+        new_dir = os.path.join(_hasil_induk(args.out), final_slug)
         if os.path.exists(new_dir):
             final_slug = f"{final_slug}-{int(time.time())}"
-            new_dir = os.path.join(os.getcwd(), final_slug)
+            new_dir = os.path.join(_hasil_induk(args.out), final_slug)
         os.rename(out_dir, new_dir)
         out_dir = new_dir
         print(f"folder  : diganti nama -> {out_dir}", flush=True)
@@ -471,6 +543,58 @@ def main():
         print(f"tersimpan: {v['path']}", flush=True)
 
     print(json.dumps(summary, indent=1, default=str))
+
+
+def catat_publish(out_dir, args=None):
+    """Tulis `<proyek>/publish.txt` — caption siap Buffer (3 blok platform).
+
+    Dijalankan otomatis pada akhir setiap run lewat `atexit`, jadi video affiliate
+    langsung bisa masuk `buffer-rencana-penuh.py` seperti video BITS lain.
+    Gagal menulis tidak boleh menggagalkan run: dicetak sebagai peringatan saja.
+    """
+    try:
+        detik = getattr(args, "seconds", None) if args is not None else None
+        path = publish.dari_proyek(out_dir, detik=detik)
+        print(f"publish : {path}", flush=True)
+        return path
+    except Exception as e:  # noqa: BLE001 — jangan gagalkan run karena caption
+        print(f"[publish] peringatan: gagal menulis publish.txt: {e}", flush=True)
+        return None
+
+
+def catat_sumber(out_dir, args, kode=None):
+    """Tulis `<proyek>/sumber.json` — bukti bahan mana yang dipakai.
+
+    Dulu ini tugas pembungkus `affiliate-jalan.py` di luar repo. Sekarang masuk
+    pipeline supaya skill sendiri yang mencatat, dan `bits-sources
+    bersihkan` bisa memutuskan bahan mana yang aman dibuang tanpa menebak dari
+    nama folder.
+
+    Isinya: slug, waktu, berkas bahan (basename), perintah, dan exit code.
+    `kode` parameter tetap ada untuk pemanggilan manual; lewat `atexit` nilainya
+    diambil dari `_EXIT` yang diisi `main()` (exc_info sudah kosong saat
+    handler atexit berjalan, jadi tidak bisa dibaca langsung di sana).
+    """
+    if kode is None:
+        kode = _EXIT["kode"]
+    if not out_dir or not os.path.isdir(out_dir):
+        return None
+    bahan = [os.path.basename(args.product)]
+    if getattr(args, "model", None):
+        b = os.path.basename(args.model)
+        if b not in bahan:
+            bahan.append(b)
+    catatan = {
+        "slug": os.path.basename(out_dir.rstrip("/")),
+        "waktu": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "berkas": bahan,
+        "perintah": " ".join(sys.argv),
+        "exit": kode,
+    }
+    path = os.path.join(out_dir, "sumber.json")
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(catatan, f, indent=1, ensure_ascii=False)
+    return path
 
 
 if __name__ == "__main__":

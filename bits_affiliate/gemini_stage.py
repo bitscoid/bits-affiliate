@@ -603,10 +603,13 @@ async def _grab_flow_prompt(c):
 # ------------------------------------------------------------------- stage
 
 
-def run_stage(
-    account, images, prompt_file, out_dir, timeout=900, visible=True, mode=None
-):
+def run_stage(account, images, prompt_text, out_dir, timeout=900, visible=True,
+              mode=None):
     """Upload images + prompt to Gemini, save STORYBOARD.jpeg and FLOW.md.
+
+    `prompt_text` is the full prompt body (built by `prompts.render_prompt`),
+    not a file path — one place owns the prompt, so there is no second copy to
+    drift.
 
     visible=True keeps a real Chrome window on the Xvfb display so the run can
     be watched over VNC; the work itself is identical either way. mode=None
@@ -615,8 +618,7 @@ def run_stage(
     """
     port = fc.port_for(account)
     os.makedirs(out_dir, exist_ok=True)
-    with open(prompt_file, encoding="utf-8") as f:
-        prompt = f.read()
+    prompt = prompt_text
 
     fc.stop_chrome(port)
     time.sleep(1)
