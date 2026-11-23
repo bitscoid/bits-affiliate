@@ -127,7 +127,7 @@ bits-login               # account status board
 3. Click **Upload & tools** (`Upload & alat`) — file inputs do not exist in
    the DOM before this click.
 4. Feed images via CDP `DOM.setFileInputFiles` into
-   `input[type=file][accept*="image"]`. Never the native file chooser.
+   `input[type=file][accept*="image"]`.
 5. Paste the prompt into `[contenteditable="true"]` via `Input.insertText`,
    click **Kirim pesan / Send message**.
 6. Wait: text stops growing AND the Stop button is gone. >5 min silence before
@@ -187,7 +187,7 @@ bits-login --done <email>   # verify session email (exit 1 on mismatch)
 bits-login --check [-j N]   # headless probe, -j clamped to 4
 ```
 
-Never open the same profile twice — two Chromes corrupt the cookie DB.
+One Chrome per profile at a time — a second corrupts the cookie DB.
 `account_balance()` (reads the avatar credit panel, ID + EN) powers auto
 account-switching; balances are cached per run.
 

@@ -27,7 +27,7 @@ item lain di menu ini tidak pernah diklik.
 
 Alurnya: klik menu → `DOM.getDocument(depth=-1, pierce=True)` →
 `DOM.querySelector('input[type=file][accept*="image"]')` → `DOM.setFileInputFiles`.
-Jangan pakai file chooser: menunya tidak konsisten memicu dialog.
+Pakai `Page.setInterceptFileChooserDialog` + `DOM.setFileInputFiles` — chooser native tidak konsisten memicu dialog.
 
 Kalau URL berakhir di `/signin`, script berhenti dan meminta login ulang.
 
@@ -107,7 +107,7 @@ Flow menampilkan `Peringatan poin tidak cukup`, script berhenti sebelum generate
 | Menu upload | `.upload-text` atau teks `Upload media` / `Unggah media` |
 | File chooser | `Page.setInterceptFileChooserDialog` → `Page.fileChooserOpened` → `DOM.setFileInputFiles(backendNodeId)` |
 | Thumbnail aset | `.asset-thumbnail`; **siap diklik** = `<img>`-nya termuat (`img.complete && naturalWidth > 0`) — thumbnail muncul sejak upload MULAI, klik sebelum img termuat adalah no-op (dipolling 15×1 dtk) |
-| Tempel ke prompt | **klik `.asset-thumbnail`** (closest `button,[role="button"],.upload-item`) — tombol `Tambahkan ke perintah / Add to prompt` bisa no-op, jangan diandalkan; chip belum mendarat → klik ulang di detik ke-9/18 (aset lambat diproses) |
+| Tempel ke prompt | **klik `.asset-thumbnail`** (closest `button,[role="button"],.upload-item`); chip belum mendarat → klik ulang di detik ke-9/18 (aset lambat diproses) |
 | Bukti menempel | chip di `.prompt-ingredient-bar` (`flow-ingredient-chip`) **yang mengandung `<img>`** — chip progress-upload (innerText `cancel`, tanpa gambar) bukan bukti |
 
 Upload hanya menaruh berkas di library project; klik thumbnail untuk
@@ -120,12 +120,11 @@ membuang chip yang baru menempel.
 |---|---|
 | Sedang render | polling thumbnail tiap 4 dtk; logout dideteksi dari URL `/about` atau teks `Buat/Create with Google Flow` |
 | Selesai | `img` dengan `/asb/` di `src`, `naturalHeight > naturalWidth` (9:16), **di dalam container tile** — chip storyboard di prompt bar juga `/asb/` dan tidak boleh ikut terhitung |
-| Unduh | klik tombol `⋮ More options / Opsi lainnya` di tile → item `Download / Unduh` → menu kualitas `720p` (regex `^\s*720p`, fallback `Ukuran asli / Original size`) → tunggu file >100 KB dengan ukuran stabil 2 polling → ambil terbesar. Tidak ada jalur editor — tile click hanya membuka preview overlay |
+| Unduh | klik tombol `⋮ More options / Opsi lainnya` di tile → item `Download / Unduh` → **pilih `720p`** (regex `^\s*720p`, fallback `Ukuran asli / Original size`) → tunggu file >100 KB dengan ukuran stabil 2 polling → ambil terbesar. Tile click hanya membuka preview overlay — tidak ada jalur editor |
 
 Unduhan **bukan** `fetch(video.src)`: Flow menulis file sendiri ke folder
 download, script **memindahkannya** (bukan menyalin — folder download adalah
-perantara, bukan gudang) ke folder proyek begitu ukurannya stabil. Menu 1080p
-berbayar (+3 kredit saat dicek) — jangan dipilih.
+perantara, bukan gudang) ke folder proyek begitu ukurannya stabil.
 
 ### Yang tidak ada di DOM
 
