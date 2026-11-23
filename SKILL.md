@@ -143,8 +143,7 @@ bits-login               # account status board
 Failures — `ATTEMPTS = 2`, fresh conversation each attempt, then rotate
 account: stalled (Stop present, 36 silent polls), reset (page shrank >50%),
 incomplete (`ReplyIncomplete` — error carries the tail of Gemini's reply).
-The "Buat gambar / Create images" tool is never used: it breaks more replies
-than it fixes; failure just retries the identical plain process.
+Failure just retries the identical plain process — no plus-menu tools.
 
 ## Stage 2 — Flow
 

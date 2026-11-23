@@ -22,9 +22,8 @@ memakai class/aria-label yang stabil; teks label bisa berubah bahasa.
 
 **Penting:** `input[type=file]` **tidak ada** di DOM sampai menu upload diklik.
 Jumlah dan urutan input tidak diandalkan — pilih yang `accept`-nya memuat
-`image`. Item `Buat gambar / Create images` ada di menu ini tetapi **sengaja
-tidak dipakai pipeline**: di lapangan memicu balasan teks-saja lebih sering
-daripada memperbaiki.
+`image`. Pipeline hanya memakai item upload (`Upload file` / `Upload lainnya`);
+item lain di menu ini tidak pernah diklik.
 
 Alurnya: klik menu → `DOM.getDocument(depth=-1, pierce=True)` →
 `DOM.querySelector('input[type=file][accept*="image"]')` → `DOM.setFileInputFiles`.
