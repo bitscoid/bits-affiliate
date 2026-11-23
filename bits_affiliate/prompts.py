@@ -1,15 +1,9 @@
 """Prompt storyboard Gemini — 2 templat + blok spesifikasi durasi.
 
-Kenapa modul ini ada: dulu ada empat file `references/PROMPT-GEMINI-*.md`
-(produk / produk+model x 13 dtk / 10 dtk). Isinya 60-90% identik; yang benar-benar
-berbeda hanya blok timing dan dua baris anggaran kata. Empat file berarti empat
-tempat untuk lupa memperbarui aturan yang sama.
-
-Sekarang: dua templat (produk saja, produk+model) + `SPEC` per durasi, disusun
-oleh `render_prompt()`. Hasil render dijamin BYTE-IDENTIK dengan empat file lama
-(lihat tests/test_prompt_render.py).
-
-Menambah durasi baru = menambah satu entri di `SPEC`, bukan menyalin file.
+Dua templat (produk saja, produk+model) + `SPEC` per durasi, disusun oleh
+`render_prompt()` — hasil render dijaga byte-identik oleh
+tests/test_prompt_render.py. Menambah durasi = menambah satu entri `SPEC`,
+bukan menyalin berkas.
 """
 
 from __future__ import annotations

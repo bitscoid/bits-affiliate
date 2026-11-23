@@ -9,23 +9,21 @@ Kenapa ada: gambar yang dikirim lewat WhatsApp Document mendarat di
 cache Hermes (`<home>/.hermes/cache/documents`) dan HILANG setelah 24 jam
 (`MEDIA_CACHE_MAX_AGE_HOURS`). Sources menyimpan bahan sampai proyeknya jadi.
 
-Aturan (terbukti dengan uji; jangan dilonggarkan tanpa alasan):
+Aturan (jangan dilonggarkan tanpa alasan):
 
-1. `bersihkan` mengosongkan SELURUH isi Sources begitu ada proyek selesai
-   (aturan CEO 2026-11-23). Berkas yang belum tercatat dipakai dilaporkan dulu,
-   tapi tetap dihapus — operator bisa Ctrl-C kalau itu keliru.
-2. Tidak ada flag `--project`. Versi lama punya flag itu tetapi tetap menghapus
-   seluruh Sources: menyesatkan dan berbahaya (temuan Farhan, t_3efd75d1).
+1. `bersihkan` mengosongkan SELURUH isi Sources begitu ada proyek selesai.
+   Berkas yang belum tercatat dipakai dilaporkan dulu, tapi tetap dihapus —
+   operator bisa Ctrl-C kalau itu keliru.
+2. Tidak ada flag `--project`: flag seperti itu tetap menghapus seluruh
+   Sources — menyesatkan dan berbahaya.
 3. Tidak ada folder `src/`. Bukti pemakaian = `<proyek>/sumber.json`, ditulis
    pipeline sendiri lewat `atexit` (`pipeline.catat_sumber`).
 4. Proyek selesai = punya `.mp4` > 10 KB tanpa penanda sementara
    (`.part`/`.tmp`/`.lock`/`.crdownload`).
-5. `ambil` menolak HEIC/HEIF dengan pesan jelas: pipeline hanya mengenal
-   jpeg/png/webp/gif, jadi meloloskannya berarti gagal 10 menit kemudian di
-   `ensure_usable_image`.
+5. `ambil` menolak HEIC/HEIF: pipeline hanya mengenal jpeg/png/webp/gif,
+   meloloskannya berarti gagal 10 menit kemudian di `ensure_usable_image`.
 6. `ambil` mencatat asal tiap berkas di `Sources/manifest.json`
-   (document = kualitas utuh, foto-whatsapp = sudah dikompres) supaya operator
-   tidak menebak mana product dan mana model.
+   (document = kualitas utuh, foto-whatsapp = dikompres WhatsApp).
 """
 
 import argparse
@@ -80,8 +78,8 @@ def bahan_terpakai(selesai):
        jadi selalu ada walau run berhenti di tengah. Ini bukti utama.
     2. Nama berkas disebut di `FLOW.md`/JSON ringkasan proyek.
 
-    Folder `src/` tidak pernah dipakai sebagai bukti: folder itu sudah dibuang
-    dari pipeline (permintaan CEO, 2026-11-23). Jangan hidupkan lagi.
+    Folder `src/` tidak pernah dipakai sebagai bukti: folder itu sengaja
+    tidak ada di hasil proyek. Jangan hidupkan lagi.
     """
     terpakai = {}
     for folder, _mp4 in selesai:
@@ -212,12 +210,9 @@ def cmd_ambil(dry):
 def cmd_bersihkan(dry):
     """Hapus SELURUH isi Sources setelah ada proyek yang selesai.
 
-    Aturan CEO 2026-11-23: semua berkas di folder Sources dihapus
-    begitu proyeknya selesai, supaya folder bahan selalu bersih untuk batch
-    berikutnya.
-
-    Tidak ada pencadangan ke `src/`: CEO tidak mau folder itu ada di hasil,
-    jadi jangan dihidupkan kembali di sini. Kalau sebuah bahan belum tercatat
+    Semua berkas dihapus begitu proyeknya selesai, supaya folder bahan
+    selalu bersih untuk batch berikutnya. Tidak ada pencadangan ke `src/`:
+    folder itu sengaja tidak ada di hasil. Kalau sebuah bahan belum tercatat
     di `sumber.json` proyek mana pun, `bersihkan` melaporkannya lebih dulu
     supaya operator bisa membatalkan dengan Ctrl-C kalau itu keliru.
     """

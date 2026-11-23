@@ -116,8 +116,7 @@ bits-credits 48        # which accounts can pay for one video?
 bits-login             # account status board
 ```
 
-Every run ends by stopping its own leftover processes (Chrome, Xvfb, x11vnc) via
-`flow_cdp.cleanup_all()`, registered with `atexit` in `pipeline.py`.
+Every run stops its own Chrome/Xvfb processes on exit — no leftovers.
 
 ---
 
@@ -141,12 +140,10 @@ product.jpg (+ model.jpg?)
 
 ### The probe: measure, don't guess 📏
 
-Flow caps video duration per account tier, and no plan label reveals it.
-Phase 0 opens Flow, reads the duration slider's `max` attribute and the
-composer's cost chip, then caches the result per account. **13 s wins when
-any affordable account supports it** — otherwise the pipeline falls back to
-the best 10 s account and regenerates the storyboard with a matching 10 s
-prompt template, so pacing always matches the render.
+Flow caps duration per account tier and no plan label reveals it, so Phase 0
+reads the slider's `max` + the cost chip and caches it per account. 13 s wins
+when an affordable account supports it — otherwise the best 10 s account is
+used with a matching 10 s prompt template, so pacing always matches the render.
 
 ### Safety layers 🛡️
 
@@ -211,12 +208,8 @@ The repo ships a complete `SKILL.md`, so coding agents can operate the
 pipeline from natural language. Link it into your agent's skill folder:
 
 ```bash
-# OpenCode
-ln -sfn /path/to/bits-affiliate ~/.config/opencode/skills/bits-affiliate
-
-# Hermes Agent (repeat for each profile)
-ln -sfn /path/to/bits-affiliate ~/.hermes/skills/bits-affiliate
-ln -sfn /path/to/bits-affiliate ~/.hermes/profiles/<name>/skills/bits-affiliate
+ln -sfn /path/to/bits-affiliate ~/.config/opencode/skills/bits-affiliate   # OpenCode
+ln -sfn /path/to/bits-affiliate ~/.hermes/skills/bits-affiliate            # Hermes (repeat per profile)
 ```
 
 Then just say: *"pakai bits-affiliate, buatkan video dari product.jpg dan
@@ -227,9 +220,7 @@ model.jpg"*.
 ## 📝 Notes
 
 - Flow's UI follows the profile language — selectors cover **ID 🇮🇩 + EN 🇬🇧**
-- Prompts sent to Flow are always English, even with Indonesian overlays
 - Probe cache lives at `~/.config/bits-affiliate/caps.json` (delete to re-probe)
-- One Chrome profile per account under `~/.config/bits-affiliate/profiles/`
 
 ---
 

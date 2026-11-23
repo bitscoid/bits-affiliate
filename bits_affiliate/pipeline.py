@@ -238,7 +238,7 @@ def _jalankan():
 
     # Bahan dipakai LANGSUNG dari tempatnya (di server BITS: folder Sources).
     # Tidak ada folder `src/`: konversi PNG/WebP ditulis ke folder sementara di
-    # luar hasil, lalu dibuang — CEO tidak mau `src/` muncul di folder proyek.
+    # luar hasil, lalu dibuang — folder proyek hanya berisi artefak final.
     work = tempfile.mkdtemp(prefix="bits-affiliate-")
     # Dibersihkan saat proses selesai, termasuk pada SystemExit / error: folder
     # ini hanya tempat konversi sementara, tidak boleh tertinggal di hasil.
@@ -560,12 +560,9 @@ def catat_publish(out_dir, args=None):
 def catat_sumber(out_dir, args, kode=None):
     """Tulis `<proyek>/sumber.json` — bukti bahan mana yang dipakai.
 
-    Dulu ini tugas pembungkus `affiliate-jalan.py` di luar repo. Sekarang masuk
-    pipeline supaya skill sendiri yang mencatat, dan `bits-sources
-    bersihkan` bisa memutuskan bahan mana yang aman dibuang tanpa menebak dari
-    nama folder.
-
-    Isinya: slug, waktu, berkas bahan (basename), perintah, dan exit code.
+    Bukti untuk `bits-sources bersihkan`: bahan mana yang aman dibuang,
+    tanpa menebak dari nama folder. Isinya: slug, waktu, berkas bahan
+    (basename), perintah, dan exit code.
     `kode` parameter tetap ada untuk pemanggilan manual; lewat `atexit` nilainya
     diambil dari `_EXIT` yang diisi `main()` (exc_info sudah kosong saat
     handler atexit berjalan, jadi tidak bisa dibaca langsung di sana).
