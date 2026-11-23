@@ -105,8 +105,8 @@ def _hasil_induk(out=None):
 
     Dinamis, tanpa path statis: hasil mengikuti tempat agent/operator
     berdiri (konvensi CLI umum), jadi skill jalan di mesin mana pun.
-    Alur BITS di server produksi tinggal `cd /root/Projects` dulu atau
-    `--out /root/Projects` — folder Sources-nya tetap satu tempat.
+    Alur inbox BITS (bahan masuk & hasil keluar di satu root) tinggal
+    `cd <root-proyek>` dulu, atau `--out <root-proyek>`.
     """
     if out:
         os.makedirs(out, exist_ok=True)
@@ -236,7 +236,7 @@ def _jalankan():
     # (bahan + waktu) yang sudah ada.
     atexit.register(catat_publish, out_dir, args)
 
-    # Bahan dipakai LANGSUNG dari tempatnya (di server BITS: /root/Projects/Sources).
+    # Bahan dipakai LANGSUNG dari tempatnya (di server BITS: folder Sources).
     # Tidak ada folder `src/`: konversi PNG/WebP ditulis ke folder sementara di
     # luar hasil, lalu dibuang — CEO tidak mau `src/` muncul di folder proyek.
     work = tempfile.mkdtemp(prefix="bits-affiliate-")

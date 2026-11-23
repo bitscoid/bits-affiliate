@@ -6,7 +6,7 @@
     bits-sources status
 
 Kenapa ada: gambar yang dikirim lewat WhatsApp Document mendarat di
-`/root/.hermes/cache/documents` dan HILANG setelah 24 jam
+cache Hermes (`<home>/.hermes/cache/documents`) dan HILANG setelah 24 jam
 (`MEDIA_CACHE_MAX_AGE_HOURS`). Sources menyimpan bahan sampai proyeknya jadi.
 
 Aturan (terbukti dengan uji; jangan dilonggarkan tanpa alasan):
@@ -212,7 +212,7 @@ def cmd_ambil(dry):
 def cmd_bersihkan(dry):
     """Hapus SELURUH isi Sources setelah ada proyek yang selesai.
 
-    Aturan CEO 2026-11-23: semua berkas di /root/Projects/Sources dihapus
+    Aturan CEO 2026-11-23: semua berkas di folder Sources dihapus
     begitu proyeknya selesai, supaya folder bahan selalu bersih untuk batch
     berikutnya.
 

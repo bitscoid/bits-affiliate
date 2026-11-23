@@ -70,8 +70,8 @@ bits-affiliate --product product.jpg [--model model.jpg]
 
 Results default to the **current directory** (`<cwd>/<slug>/`, `--out DIR`
 overrides) — portable, works on any machine. BITS server convention: run from
-`/root/Projects` so `Sources/` (materials in) and the finished projects (out)
-share one root; `BITS_PROJECTS=/some/root` moves the `bits-sources` root.
+one projects root so `Sources/` (materials in) and finished projects (out)
+share it; `BITS_PROJECTS=/some/root` moves the `bits-sources` root.
 
 | Flag | Meaning |
 |---|---|
@@ -93,7 +93,7 @@ Output in `<out>/<slug>/`: `STORYBOARD.jpeg`, `FLOW.md`, `<slug>.mp4`, `sumber.j
 **`publish.txt` dibuat otomatis** oleh `bits_affiliate/publish.py`, didaftarkan pada
 `atexit` di pipeline — jadi setiap run (sukses, `--skip-flow`, `--dry-run`,
 `SystemExit`) meninggalkan caption siap Buffer. Bentuknya sengaja sama dengan video
-BITS lain (`/root/Videos/<slug>/output/publish.txt`): header 6 baris `# ` + blok
+BITS lain (folder proyek video BITS): header 6 baris `# ` + blok
 `=== TikTok`, `=== Instagram Reels`, `=== YouTube Shorts`. Dengan begitu
 `buffer-rencana-penuh.py` membacanya tanpa perubahan apa pun.
 
@@ -114,10 +114,10 @@ bits-publish <slug> --channel "BITS Living" --status SIAP
 ```
 
 Video affiliate ikut masuk rencana Buffer otomatis: `buffer-rencana-penuh.py`
-memindai `/root/Videos` DAN `/root/Projects`, dan URL asetnya memakai jalur
+memindai folder video BITS DAN folder proyek affiliate, dan URL asetnya memakai jalur
 `https://videos.bits.co.id/affiliates/<slug>/<slug>.mp4`.
 **No `src/`** — input images are read straight from where they live (on the
-BITS server: `/root/Projects/Sources/`), never copied or modified in place; any PNG/WebP
+BITS server: folder `Sources/`), never copied or modified in place; any PNG/WebP
 conversion happens in a throwaway temp dir that is deleted on exit. The folder is
 renamed once the AI title is known. The final summary is printed as JSON (paths
 are updated after the rename).

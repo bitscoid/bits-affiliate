@@ -5,7 +5,7 @@ harus bisa dijadwalkan tanpa kerja manual, jadi pencatatannya bagian dari pipeli
 (bukan tugas pembungkus luar). Dipanggil pipeline lewat `atexit` bersama
 `sumber.json`, dan bisa dijalankan ulang sendiri bila caption perlu diganti.
 
-Bentuk berkasnya sama dengan video BITS lain (`/root/Videos/<slug>/output/publish.txt`):
+Bentuk berkasnya sama dengan publish.txt video BITS lain (folder proyek video):
 header 6 baris `# `, lalu blok `=== TikTok`, `=== Instagram Reels`,
 `=== YouTube Shorts`. Dengan begitu `buffer-rencana-penuh.py` dan skrip Buffer
 lain membacanya tanpa perubahan.
