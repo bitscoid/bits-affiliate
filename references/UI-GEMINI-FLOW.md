@@ -124,7 +124,8 @@ membuang chip yang baru menempel.
 | Unduh | klik tombol `⋮ More options / Opsi lainnya` di tile → item `Download / Unduh` → menu kualitas `720p` (regex `^\s*720p`, fallback `Ukuran asli / Original size`) → tunggu file >100 KB dengan ukuran stabil 2 polling → ambil terbesar. Tidak ada jalur editor — tile click hanya membuka preview overlay |
 
 Unduhan **bukan** `fetch(video.src)`: Flow menulis file sendiri ke folder
-download profil, script menyalin file terbesar yang sudah selesai. Menu 1080p
+download, script **memindahkannya** (bukan menyalin — folder download adalah
+perantara, bukan gudang) ke folder proyek begitu ukurannya stabil. Menu 1080p
 berbayar (+3 kredit saat dicek) — jangan dipilih.
 
 ### Yang tidak ada di DOM

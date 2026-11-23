@@ -673,7 +673,9 @@ async def _download_from_tile(c, downloads_dir, out_path, before, timeout=240):
 
     src = await _await_new_file(downloads_dir, before, timeout)
     os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
-    shutil.copyfile(src, out_path)
+    # pindah, bukan salin: unduhan Chrome hanyalah perantara — final ada di
+    # folder proyek, folder downloads tidak menumpuk sampah antar-run
+    shutil.move(src, out_path)
     return {
         "via": "menu tile -> Download -> 720p",
         "file": os.path.basename(src),

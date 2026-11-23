@@ -233,7 +233,7 @@ Failure handling, `ATTEMPTS = 2` with a fresh conversation each attempt:
    the whole time.
 8. Click the tile's **More options / Opsi lainnya** (⋮) → **Download** →
    **720p Original size** (`270p GIF` / `720p` / `1080p Upscaled` /
-   `4K Upscaled`). The finished file is copied from the downloads folder to
+   `4K Upscaled`). The finished file is **moved** from the downloads folder to
    `./<slug>/<slug>.mp4` (detected by stable size across two polls).
 
 Every step that talks to the page goes through the reconnecting CDP wrapper

@@ -506,7 +506,9 @@ async def _grab_image(c, out_path, downloads_dir=None):
             await asyncio.sleep(2)
             src = _newest_download(downloads_dir, since)
             if src:
-                shutil.copyfile(src, out_path)
+                # pindah, bukan salin: folder downloads adalah perantara,
+                # bukan gudang — berkas final hidup di folder proyek saja
+                shutil.move(src, out_path)
                 return {
                     "path": out_path,
                     "bytes": os.path.getsize(out_path),
@@ -603,8 +605,9 @@ async def _grab_flow_prompt(c):
 # ------------------------------------------------------------------- stage
 
 
-def run_stage(account, images, prompt_text, out_dir, timeout=900, visible=True,
-              mode=None):
+def run_stage(
+    account, images, prompt_text, out_dir, timeout=900, visible=True, mode=None
+):
     """Upload images + prompt to Gemini, save STORYBOARD.jpeg and FLOW.md.
 
     `prompt_text` is the full prompt body (built by `prompts.render_prompt`),
