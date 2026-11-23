@@ -212,6 +212,13 @@ variants.
 
 - Headless is the default; `--vnc` only to watch a run. VNC credentials:
   `~/.config/bits-affiliate/vnc.passwd`.
+- Google's "We noticed some unusual activity" toast = bot detection on the
+  CDP-driven session, NOT a real extension problem. It can force a Flow
+  logout mid-render AFTER Mulai pembuatan was clicked — credits spent, no
+  video, pipeline hard-stops (rotating now would pay twice). Recover by
+  re-login (`bits-login <email>`), retry with another account, or wait a
+  few hours; if it repeats on every account assume the block is per-IP and
+  stop before burning credits on all of them.
 - Flow's file chooser is native: `Page.setInterceptFileChooserDialog` +
   `DOM.setFileInputFiles`.
 - A real attachment chip is inside `.prompt-ingredient-bar` AND contains an

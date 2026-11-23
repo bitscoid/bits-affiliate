@@ -234,7 +234,10 @@ def _jalankan():
     # dimasukkan ke rencana Buffer tanpa kerja manual. Didaftarkan setelah
     # catat_sumber karena atexit berjalan LIFO — publish.txt perlu sumber.json
     # (bahan + waktu) yang sudah ada.
-    atexit.register(catat_publish, out_dir, args)
+    # folder bisa di-rename setelah judul AI diketahui — resolve path saat
+    # exit, bukan saat register (summary["dir"] selalu folder final)
+    summary = {}
+    atexit.register(lambda: catat_publish(summary.get("dir") or out_dir, args))
 
     # Bahan dipakai LANGSUNG dari tempatnya (di server BITS: folder Sources).
     # Konversi PNG/WebP ditulis ke folder sementara di luar hasil, lalu dibuang —
