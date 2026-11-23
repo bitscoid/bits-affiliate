@@ -16,7 +16,7 @@ Contoh:
       --title "nama-video" \
       --account you@example.com
 
-Hasil di /root/Projects/<slug>/ (atau --out): STORYBOARD.jpeg, FLOW.md,
+Hasil di <cwd>/<slug>/ (atau --out DIR): STORYBOARD.jpeg, FLOW.md,
 <slug>.mp4, sumber.json, publish.txt
 """
 
@@ -100,21 +100,17 @@ def slugify(text):
     return re.sub(r"[^a-z0-9]+", "-", (text or "").lower()).strip("-")[:60] or "project"
 
 
-HASIL_DEFAULT = "/root/Projects"
-
-
 def _hasil_induk(out=None):
-    """Folder induk hasil video: --out, atau /root/Projects bila ada, atau cwd.
+    """Folder induk hasil video: --out, atau current directory.
 
-    Default /root/Projects disengaja: bahan tinggal di /root/Projects/Sources dan
-    hasilnya di /root/Projects/<slug>/<slug>.mp4, jadi satu tempat untuk masuk
-    dan keluar. Bila /root/Projects tidak ada (mis. mesin lain), pakai cwd.
+    Dinamis, tanpa path statis: hasil mengikuti tempat agent/operator
+    berdiri (konvensi CLI umum), jadi skill jalan di mesin mana pun.
+    Alur BITS di server produksi tinggal `cd /root/Projects` dulu atau
+    `--out /root/Projects` — folder Sources-nya tetap satu tempat.
     """
     if out:
         os.makedirs(out, exist_ok=True)
         return out
-    if os.path.isdir(HASIL_DEFAULT):
-        return HASIL_DEFAULT
     return os.getcwd()
 
 
@@ -165,8 +161,7 @@ def _jalankan():
     p.add_argument(
         "--out",
         default=None,
-        help="folder induk hasil (default: /root/Projects, atau cwd bila "
-        "/root/Projects tidak ada)",
+        help="folder induk hasil (default: current directory)",
     )
     p.add_argument(
         "--account",
@@ -241,7 +236,7 @@ def _jalankan():
     # (bahan + waktu) yang sudah ada.
     atexit.register(catat_publish, out_dir, args)
 
-    # Bahan dipakai LANGSUNG dari tempatnya (biasanya /root/Projects/Sources).
+    # Bahan dipakai LANGSUNG dari tempatnya (di server BITS: /root/Projects/Sources).
     # Tidak ada folder `src/`: konversi PNG/WebP ditulis ke folder sementara di
     # luar hasil, lalu dibuang — CEO tidak mau `src/` muncul di folder proyek.
     work = tempfile.mkdtemp(prefix="bits-affiliate-")

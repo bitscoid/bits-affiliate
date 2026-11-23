@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Inbox bahan: cache WhatsApp -> /root/Projects/Sources -> bersih.
+"""Inbox bahan: cache WhatsApp -> <BITS_PROJECTS>/Sources -> bersih.
 
     bits-sources ambil [--dry-run]     # pindahkan bahan baru ke Sources
     bits-sources bersihkan [--dry-run] # kosongkan Sources setelah proyek selesai
@@ -27,6 +27,7 @@ Aturan (terbukti dengan uji; jangan dilonggarkan tanpa alasan):
    (document = kualitas utuh, foto-whatsapp = sudah dikompres) supaya operator
    tidak menebak mana product dan mana model.
 """
+
 import argparse
 import hashlib
 import json
@@ -38,11 +39,14 @@ from pathlib import Path
 
 _HASH_CACHE = {}
 
-PROJECTS = Path("/root/Projects")
+# Portabel: root proyek bisa digeser lewat BITS_PROJECTS; cache mengikuti
+# home Hermes pengguna (bukan /root literal), jadi jalan di mesin mana pun.
+PROJECTS = Path(os.environ.get("BITS_PROJECTS", str(Path.home() / "Projects")))
 SOURCES = PROJECTS / "Sources"
 MANIFEST = SOURCES / "manifest.json"
-CACHE_DOKUMEN = Path("/root/.hermes/cache/documents")  # kiriman Document: utuh
-CACHE_GAMBAR = Path("/root/.hermes/cache/images")      # kiriman Foto: dikompres WhatsApp
+_HERMES_CACHE = Path.home() / ".hermes" / "cache"
+CACHE_DOKUMEN = _HERMES_CACHE / "documents"  # kiriman Document: utuh
+CACHE_GAMBAR = _HERMES_CACHE / "images"  # kiriman Foto: dikompres WhatsApp
 
 OK_EXT = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 TOLAK_EXT = {".heic", ".heif"}
@@ -60,7 +64,9 @@ def proyek_selesai():
         files = [f for f in d.rglob("*") if f.is_file()]
         if any(f.suffix.lower() in BELUM_SELESAI for f in files):
             continue
-        mp4 = [f for f in files if f.suffix.lower() == ".mp4" and f.stat().st_size > 10_000]
+        mp4 = [
+            f for f in files if f.suffix.lower() == ".mp4" and f.stat().st_size > 10_000
+        ]
         if mp4:
             hasil.append((d, mp4[0]))
     return hasil
@@ -82,7 +88,9 @@ def bahan_terpakai(selesai):
         catatan = folder / "sumber.json"
         if catatan.is_file():
             try:
-                for nama in json.loads(catatan.read_text(encoding="utf-8")).get("berkas", []):
+                for nama in json.loads(catatan.read_text(encoding="utf-8")).get(
+                    "berkas", []
+                ):
                     terpakai.setdefault(nama, []).append(f"{folder.name} (sumber.json)")
             except (OSError, json.JSONDecodeError):
                 pass
@@ -134,7 +142,10 @@ def baca_manifest():
     try:
         return json.loads(MANIFEST.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        print(f"PERINGATAN: manifest tidak terbaca ({exc}) — dianggap kosong", file=sys.stderr)
+        print(
+            f"PERINGATAN: manifest tidak terbaca ({exc}) — dianggap kosong",
+            file=sys.stderr,
+        )
         return {}
 
 
@@ -158,9 +169,11 @@ def cmd_ambil(dry):
                 continue
             ext = f.suffix.lower()
             if ext in TOLAK_EXT:
-                print(f"TOLAK  {f.name}: {ext} tidak dikenali pipeline "
-                      f"(hanya jpeg/png/webp/gif). Kirim ulang sebagai JPG/PNG.",
-                      file=sys.stderr)
+                print(
+                    f"TOLAK  {f.name}: {ext} tidak dikenali pipeline "
+                    f"(hanya jpeg/png/webp/gif). Kirim ulang sebagai JPG/PNG.",
+                    file=sys.stderr,
+                )
                 ditolak += 1
                 continue
             if ext not in OK_EXT:
@@ -188,7 +201,10 @@ def cmd_ambil(dry):
         return 0
     print(f"\n{pindah} berkas {'akan dipindah' if dry else 'dipindah'} ke {SOURCES}")
     if ditolak:
-        print(f"{ditolak} berkas ditolak (format tidak didukung pipeline)", file=sys.stderr)
+        print(
+            f"{ditolak} berkas ditolak (format tidak didukung pipeline)",
+            file=sys.stderr,
+        )
         return 1
     return 0
 
@@ -207,7 +223,10 @@ def cmd_bersihkan(dry):
     """
     selesai = proyek_selesai()
     if not selesai:
-        print("BERHENTI: belum ada proyek yang selesai. Sources tidak disentuh.", file=sys.stderr)
+        print(
+            "BERHENTI: belum ada proyek yang selesai. Sources tidak disentuh.",
+            file=sys.stderr,
+        )
         return 1
 
     if not SOURCES.is_dir():
@@ -227,8 +246,10 @@ def cmd_bersihkan(dry):
         print(f"  {folder.name}  ({mp4.name}, {mp4.stat().st_size / 1e6:.1f} MB)")
 
     if belum_tercatat:
-        print(f"\nPERHATIAN: {len(belum_tercatat)} berkas belum tercatat dipakai "
-              f"proyek mana pun:")
+        print(
+            f"\nPERHATIAN: {len(belum_tercatat)} berkas belum tercatat dipakai "
+            f"proyek mana pun:"
+        )
         for f in belum_tercatat:
             print(f"  {f.name}")
         print("  (tetap dihapus sesuai aturan. Ctrl-C sekarang kalau ini keliru.)")
@@ -251,19 +272,32 @@ def cmd_status():
     manifest = baca_manifest()
     isi = []
     if SOURCES.is_dir():
-        isi = [f for f in SOURCES.iterdir() if f.is_file() and f.suffix.lower() != ".json"]
+        isi = [
+            f for f in SOURCES.iterdir() if f.is_file() and f.suffix.lower() != ".json"
+        ]
         print(f"  {len(isi)} berkas, {sum(f.stat().st_size for f in isi) / 1e6:.1f} MB")
 
     selesai = proyek_selesai()
     terpakai = bahan_terpakai(selesai)
     for f in sorted(isi):
         m = manifest.get(f.name, {})
-        tanda = f"[terpakai: {', '.join(terpakai[f.name])}]" if f.name in terpakai else "[belum dipakai]"
+        tanda = (
+            f"[terpakai: {', '.join(terpakai[f.name])}]"
+            if f.name in terpakai
+            else "[belum dipakai]"
+        )
         print(f"    {f.name}  ({m.get('asal', '?')}, {m.get('waktu', '?')})  {tanda}")
 
     print("\nCache WhatsApp (hilang otomatis setelah 24 jam):")
-    for c, label in ((CACHE_DOKUMEN, "Document (utuh)"), (CACHE_GAMBAR, "Foto (dikompres WhatsApp)")):
-        n = len([f for f in c.iterdir() if f.suffix.lower() in OK_EXT]) if c.is_dir() else 0
+    for c, label in (
+        (CACHE_DOKUMEN, "Document (utuh)"),
+        (CACHE_GAMBAR, "Foto (dikompres WhatsApp)"),
+    ):
+        n = (
+            len([f for f in c.iterdir() if f.suffix.lower() in OK_EXT])
+            if c.is_dir()
+            else 0
+        )
         print(f"  {label}: {n} gambar")
 
     print("\nProyek selesai:")

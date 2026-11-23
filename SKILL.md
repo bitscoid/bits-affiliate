@@ -64,12 +64,14 @@ by magic bytes and converted to JPEG when needed (a saved HTML page named
 ## Usage
 
 ```bash
-# Bahan dari /root/Projects/Sources, hasil ke /root/Projects/<slug>/<slug>.mp4
-bits-affiliate --product /root/Projects/Sources/product.jpg [--model /root/Projects/Sources/model.jpg]
+cd <workdir>   # results land HERE — no static paths
+bits-affiliate --product product.jpg [--model model.jpg]
 ```
 
-Run it from anywhere: results default to `/root/Projects` (`--out` overrides). There is
-no `cd <workdir>` requirement and no nested `<slug>/<slug>/` folder.
+Results default to the **current directory** (`<cwd>/<slug>/`, `--out DIR`
+overrides) — portable, works on any machine. BITS server convention: run from
+`/root/Projects` so `Sources/` (materials in) and the finished projects (out)
+share one root; `BITS_PROJECTS=/some/root` moves the `bits-sources` root.
 
 | Flag | Meaning |
 |---|---|
@@ -82,7 +84,7 @@ no `cd <workdir>` requirement and no nested `<slug>/<slug>/` folder.
 | `--skip-gemini` | reuse existing STORYBOARD.jpeg + FLOW.md |
 | `--skip-flow` | stop after Gemini (0 credits spent) |
 | `--dry-run` | Flow stops right before spending credits |
-| `--out DIR` | parent folder for results (default `/root/Projects`, or cwd when that folder does not exist) |
+| `--out DIR` | parent folder for results (default: current directory) |
 | `--vnc` | TEST MODE: visible Chrome on Xvfb `:99` + x11vnc :5900 (watch the run); default is headless |
 
 Output in `<out>/<slug>/`: `STORYBOARD.jpeg`, `FLOW.md`, `<slug>.mp4`, `sumber.json`,
@@ -114,8 +116,8 @@ bits-publish <slug> --channel "BITS Living" --status SIAP
 Video affiliate ikut masuk rencana Buffer otomatis: `buffer-rencana-penuh.py`
 memindai `/root/Videos` DAN `/root/Projects`, dan URL asetnya memakai jalur
 `https://videos.bits.co.id/affiliates/<slug>/<slug>.mp4`.
-**No `src/`** — input images are read straight from where they live (normally
-`/root/Projects/Sources/`), never copied or modified in place; any PNG/WebP
+**No `src/`** — input images are read straight from where they live (on the
+BITS server: `/root/Projects/Sources/`), never copied or modified in place; any PNG/WebP
 conversion happens in a throwaway temp dir that is deleted on exit. The folder is
 renamed once the AI title is known. The final summary is printed as JSON (paths
 are updated after the rename).
@@ -138,7 +140,7 @@ own shell). Call it by hand only if you drove `flow_cdp` directly:
 python3 -c "from bits_affiliate import flow_cdp as fc; fc.cleanup_all()"
 ```
 
-## Sources (WhatsApp attachments → `/root/Projects/Sources`)
+## Sources (WhatsApp attachments → `<BITS_PROJECTS>/Sources`)
 
 ```bash
 bits-sources status             # what is waiting, what is finished

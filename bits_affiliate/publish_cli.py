@@ -9,7 +9,7 @@ import sys
 
 from . import publish as pub
 
-DEFAULT_ROOT = "/root/Projects"
+DEFAULT_ROOT = os.getcwd()
 
 
 def main():
@@ -19,7 +19,7 @@ def main():
     )
     ap.add_argument("slug", help="nama folder proyek (atau path lengkapnya)")
     ap.add_argument("--out", default=DEFAULT_ROOT,
-                    help=f"folder induk proyek (default: {DEFAULT_ROOT})")
+                    help="folder induk proyek (default: current directory)")
     ap.add_argument("--channel", default="BITS Style",
                     help="header # CHANNEL (default: BITS Style)")
     ap.add_argument("--status", default=None,

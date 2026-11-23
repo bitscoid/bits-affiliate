@@ -63,17 +63,17 @@ one-time step per account.
 ### 3. Make a video 🎥
 
 ```bash
-bits-affiliate --product /root/Projects/Sources/product.jpg \
-               --model /root/Projects/Sources/model.jpg
+cd my-videos                       # results land here — no static paths
+bits-affiliate --product product.jpg --model model.jpg
 ```
 
-Results land in `/root/Projects/<slug>/` (override the parent with `--out DIR`).
-Run it from anywhere — no `cd` needed, no nested `<slug>/<slug>/`.
+Results land in `./<slug>/` — the **current directory**, like any well-behaved
+CLI (`--out DIR` overrides). No nested `<slug>/<slug>/`.
 
 Output:
 
 ```
-/root/Projects/<slug>/
+./<slug>/
 ├── STORYBOARD.jpeg    # AI-designed storyboard sheet
 ├── FLOW.md            # the Flow prompt Gemini wrote
 ├── <slug>.mp4         # 🎬 the video (720×1280, 13 s or 10 s)
@@ -81,7 +81,7 @@ Output:
 └── publish.txt        # Buffer-ready caption (TikTok / Reels / Shorts blocks)
 ```
 
-Input images are read straight from `/root/Projects/Sources/` — there is no `src/`
+Input images are read straight from where they live — there is no `src/`
 folder in the result. PNG/WebP conversion happens in a throwaway temp dir that is
 deleted when the process exits.
 
@@ -95,7 +95,7 @@ deleted when the process exits.
 | `--model path` | model photo — enables the product+model storyboard |
 | `--title "text"` | video title; empty = AI picks it from the storyboard |
 | `--slug name` | output folder name |
-| `--out DIR` | parent folder for results (default `/root/Projects`) |
+| `--out DIR` | parent folder for results (default: current directory) |
 | `--account email` | starting account (default: first registered) |
 | `--seconds 10\|13` | force duration, skipping the auto probe |
 | `--mode Auto` | Gemini model mode, when the account exposes it |
@@ -109,7 +109,7 @@ Companion tools:
 
 ```bash
 bits-sources status    # WhatsApp attachments waiting in the cache, finished projects
-bits-sources ambil     # move them into /root/Projects/Sources (+ manifest.json)
+bits-sources ambil     # move them into $BITS_PROJECTS/Sources (+ manifest.json)
 bits-sources bersihkan # empty Sources once a project has finished
 bits-publish <slug>    # rewrite publish.txt (caption) without re-rendering
 bits-credits 48        # which accounts can pay for one video?
