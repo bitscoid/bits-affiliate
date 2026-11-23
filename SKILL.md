@@ -9,7 +9,7 @@ description: >
   Google Flow renders a 9:16 video. Use when the user says "pakai
   bits-affiliate", "buatkan video dengan bahan <path>", mentions product.jpg /
   model.jpg, or asks for the affiliate video skill. Outputs:
-  ./<slug>/STORYBOARD.jpeg, ./<slug>/FLOW.md, ./<slug>/<slug>.mp4.
+  <out>/<slug>/STORYBOARD.jpeg, FLOW.md, <slug>.mp4, sumber.json, publish.txt.
 metadata:
   hermes:
     tags: [video, affiliates, gemini, google-flow, omni, storyboard, cdp]
@@ -96,7 +96,8 @@ BITS lain (`/root/Videos/<slug>/output/publish.txt`): header 6 baris `# ` + blok
 `buffer-rencana-penuh.py` membacanya tanpa perubahan apa pun.
 
 Isinya diturunkan dari bahan yang ada, bukan dikarang: deskripsi dari naskah VO
-(`vo/naskah.txt`, maksimal 45 kata), judul dari kalimat penutup naskah, dan tagar
+(`vo/naskah.txt`, inti dibatasi 42 kata + satu kalimat penutup = maksimal 50
+kata), judul dari kalimat penutup naskah, dan tagar
 dari tema yang Terdeteksi (parfum, perawatan, fashion, rumah, gadget) dengan
 `umum` sebagai cadangan supaya caption tidak pernah gagal terbit. Nominal harga
 dan CTA "Hubungi kami" tidak pernah ditulis — aturan BITS.
@@ -148,9 +149,9 @@ bits-sources bersihkan --dry-run
 ```
 
 Each file lands with an entry in `Sources/manifest.json` recording its origin
-(`document` = untouched quality, `photo` = WhatsApp-compressed). `.heic/.heif` are
-refused. `bersihkan` refuses to run while no project has finished, so materials are
-never wiped mid-production.
+(`document` = untouched quality, `foto-whatsapp` = WhatsApp-compressed).
+`.heic/.heif` are refused. `bersihkan` refuses to run while no project has
+finished, so materials are never wiped mid-production.
 
 ## Credits — one rule, stated once
 
@@ -190,8 +191,8 @@ Flash.
 7. Grab the storyboard: `img` with the largest **rendered** size (source
    thumbnail ~112 px, storyboard ~708 px; `naturalWidth` lies), click
    **Download full-size image** (hover to reveal, poll up to 6 s), detect the
-   new file by **mtime** in the profile's downloads folder, save as
-   `STORYBOARD.jpeg`.
+   new file by **mtime** in the skill's downloads folder
+   (`~/.config/bits-affiliate/downloads`), save as `STORYBOARD.jpeg`.
 8. Extract the fenced block under `PROMPT GOOGLE FLOW` into `FLOW.md`, and
    the title hint from the LAST `STORYBOARD + FLOW PROMPT —` line (earlier
    matches are the echoed prompt's placeholder).
@@ -322,6 +323,7 @@ any label used by the code must have both language variants.
 |---|---|
 | `bits_affiliate/pipeline.py` | two-stage orchestrator, CLI, account fallback, `sumber.json`, cleanup hook |
 | `bits_affiliate/prompts.py` | storyboard prompts: 2 templates + `SPEC[seconds]` (duration block) |
+| `bits_affiliate/publish.py` | `publish.txt` builder (Buffer caption); `publish_cli.py` = `bits-publish` |
 | `bits_affiliate/gemini_stage.py` | stage 1: upload, prompt, waits, retries, storyboard + Flow prompt |
 | `bits_affiliate/flow_stage.py` | stage 2: settings, ingredients, generate, download; adaptive duration (`pick_seconds`, `parse_cost`, `probe_account`) |
 | `bits_affiliate/flow_cdp.py` | CDP transport, per-account profiles, Chrome launch/kill, VNC, `cleanup_all()` |
