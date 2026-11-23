@@ -237,8 +237,8 @@ def _jalankan():
     atexit.register(catat_publish, out_dir, args)
 
     # Bahan dipakai LANGSUNG dari tempatnya (di server BITS: folder Sources).
-    # Tidak ada folder `src/`: konversi PNG/WebP ditulis ke folder sementara di
-    # luar hasil, lalu dibuang — folder proyek hanya berisi artefak final.
+    # Konversi PNG/WebP ditulis ke folder sementara di luar hasil, lalu dibuang —
+    # folder proyek hanya berisi artefak final.
     work = tempfile.mkdtemp(prefix="bits-affiliate-")
     # Dibersihkan saat proses selesai, termasuk pada SystemExit / error: folder
     # ini hanya tempat konversi sementara, tidak boleh tertinggal di hasil.

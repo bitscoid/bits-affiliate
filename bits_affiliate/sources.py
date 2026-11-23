@@ -14,11 +14,9 @@ Aturan (jangan dilonggarkan tanpa alasan):
 1. `bersihkan` mengosongkan SELURUH isi Sources begitu ada proyek selesai.
    Berkas yang belum tercatat dipakai dilaporkan dulu, tapi tetap dihapus —
    operator bisa Ctrl-C kalau itu keliru.
-2. Tidak ada flag `--project`: flag seperti itu tetap menghapus seluruh
-   Sources — menyesatkan dan berbahaya.
-3. Tidak ada folder `src/`. Bukti pemakaian = `<proyek>/sumber.json`, ditulis
-   pipeline sendiri lewat `atexit` (`pipeline.catat_sumber`).
-4. Proyek selesai = punya `.mp4` > 10 KB tanpa penanda sementara
+2. Bukti pemakaian bahan = `<proyek>/sumber.json`, ditulis pipeline sendiri
+   lewat `atexit` (`pipeline.catat_sumber`).
+3. Proyek selesai = punya `.mp4` > 10 KB tanpa penanda sementara
    (`.part`/`.tmp`/`.lock`/`.crdownload`).
 5. `ambil` menolak HEIC/HEIF: pipeline hanya mengenal jpeg/png/webp/gif,
    meloloskannya berarti gagal 10 menit kemudian di `ensure_usable_image`.
@@ -77,9 +75,6 @@ def bahan_terpakai(selesai):
     1. `<proyek>/sumber.json` — ditulis `pipeline.catat_sumber` lewat `atexit`,
        jadi selalu ada walau run berhenti di tengah. Ini bukti utama.
     2. Nama berkas disebut di `FLOW.md`/JSON ringkasan proyek.
-
-    Folder `src/` tidak pernah dipakai sebagai bukti: folder itu sengaja
-    tidak ada di hasil proyek. Jangan hidupkan lagi.
     """
     terpakai = {}
     for folder, _mp4 in selesai:
@@ -211,8 +206,7 @@ def cmd_bersihkan(dry):
     """Hapus SELURUH isi Sources setelah ada proyek yang selesai.
 
     Semua berkas dihapus begitu proyeknya selesai, supaya folder bahan
-    selalu bersih untuk batch berikutnya. Tidak ada pencadangan ke `src/`:
-    folder itu sengaja tidak ada di hasil. Kalau sebuah bahan belum tercatat
+    selalu bersih untuk batch berikutnya. Kalau sebuah bahan belum tercatat
     di `sumber.json` proyek mana pun, `bersihkan` melaporkannya lebih dulu
     supaya operator bisa membatalkan dengan Ctrl-C kalau itu keliru.
     """
