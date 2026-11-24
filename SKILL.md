@@ -84,12 +84,12 @@ by magic bytes and converted to JPEG when needed. Prompt templates live in
   sumber.json             bahan & metadata (khas affiliate)
 ```
 
-Tidak ada `src/`, `renders/`, atau `out/` di folder hasil: pipeline membaca bahan
-langsung dari lokasinya, dan konversi berjalan di folder sementara.
+Folder hasil hanya berisi bentuk di atas: pipeline membaca bahan langsung dari
+lokasinya, dan konversi berjalan di folder sementara.
 
 - `publish.txt` — Buffer-ready caption (header `# ` lines + `=== TikTok`,
   `=== Instagram Reels`, `=== YouTube Shorts` blocks), written automatically
-  on every exit. Description comes from `script.txt` (`vo/naskah.txt` pada proyek lama), tags from the detected theme, never prices or "contact us" CTA.
+  on every exit. Description comes from `script.txt`, tags from the detected theme, never prices or "contact us" CTA.
   `# STATUS` is honest: `BELUM-ADA-VIDEO` when the mp4 does not exist.
   Rewrite anytime: `bits-publish <slug> [--channel C] [--status S]`.
 - `sumber.json` — provenance written on every exit: `slug`, `waktu`, `berkas`,

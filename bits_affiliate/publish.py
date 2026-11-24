@@ -175,10 +175,12 @@ def tulis(out_dir: str, **kw) -> str:
 
 def dari_proyek(out_dir: str, channel: str = "BITS Style", detik=None,
                 status: str = "SIAP") -> str:
-    """Cara pakai paling ringkas: baca `sumber.json` + `vo/naskah.txt` di proyek.
+    """Cara pakai paling ringkas: baca `sumber.json` + `script.txt` di proyek.
 
     Ini yang dipanggil pipeline pada `atexit`, jadi setiap video affiliate
-    langsung punya publish.txt tanpa langkah tambahan.
+    langsung punya publish.txt tanpa langkah tambahan. Hanya mengenal struktur
+    standar: `script.txt` dan `output/<slug>.mp4`. Tidak ada lokasi cadangan —
+    proyek yang menyimpang harus dirapikan, bukan diakomodasi.
     """
     out_dir = os.path.abspath(out_dir)  # "." -> path absolut, cegah slug "."
     slug = os.path.basename(out_dir.rstrip("/"))
@@ -188,35 +190,24 @@ def dari_proyek(out_dir: str, channel: str = "BITS Style", detik=None,
             sumber = json.load(f)
     except (OSError, ValueError):
         pass
-    # naskah: script.txt (standar BITS) dengan cadangan vo/naskah.txt (proyek lama)
-    naskah = _baca(os.path.join(out_dir, "script.txt")) or \
-        _baca(os.path.join(out_dir, "vo", "naskah.txt"))
+    naskah = _baca(os.path.join(out_dir, "script.txt"))
     bahan = (sumber.get("berkas") or [None])[0] if sumber else None
     produk = bahan or ""
-    # video: `output/` (standar) atau akar proyek (proyek lama sebelum 2026-11-24)
     out_video = os.path.join(out_dir, "output")
-    nama_mp4 = None
-    for kandidat_dir in (out_video, out_dir):
-        if not os.path.isdir(kandidat_dir):
-            continue
-        if os.path.exists(os.path.join(kandidat_dir, f"{slug}.mp4")):
-            nama_mp4 = f"{slug}.mp4"
-        else:
-            # nama video bisa beda dari slug; pakai mp4 apa pun di folder itu
-            lain = [x for x in sorted(os.listdir(kandidat_dir)) if x.endswith(".mp4")]
-            nama_mp4 = lain[0] if lain else None
-        if nama_mp4:
-            video = (f"{slug}/output/{nama_mp4}" if kandidat_dir == out_video
-                     else f"{slug}/{nama_mp4}")
-            break
-    else:
-        video = f"{slug}/output/{slug}.mp4"
+    nama_mp4 = f"{slug}.mp4"
+    if not os.path.exists(os.path.join(out_video, nama_mp4)):
+        # nama video bisa beda dari slug; pakai mp4 apa pun di output/
+        lain = [x for x in sorted(os.listdir(out_video)) if x.endswith(".mp4")] \
+            if os.path.isdir(out_video) else []
+        if lain:
+            nama_mp4 = lain[0]
+    video = f"{slug}/output/{nama_mp4}"
     # Video belum ada (mis. run berhenti sebelum Flow) JANGAN ditandai SIAP:
     # rencana Buffer akan menjadwalkan berkas yang tidak ada dan post 404.
-    if not nama_mp4:
+    if not os.path.exists(os.path.join(out_video, nama_mp4)):
         status = "BELUM-ADA-VIDEO"
-    if detik is None and nama_mp4:
-        detik = _durasi(os.path.join(out_dir, video.split(f"{slug}/", 1)[1]))
+    if detik is None:
+        detik = _durasi(os.path.join(out_video, nama_mp4))
     return tulis(out_dir, slug=slug, produk=produk, naskah=naskah,
                  detik=detik, channel=channel, status=status,
                  video=video, sumber=sumber)
