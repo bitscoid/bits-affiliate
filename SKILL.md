@@ -45,14 +45,9 @@ cd <workdir>                                  # results land here
 bits-affiliate --product product.jpg [--model model.jpg]
 ```
 
-Results go to `<cwd>/<slug>/`. Resolusi folder induk, berurutan:
-
-1. `--out DIR` — menang atas semua
-2. `BITS_AFFILIATE_OUT` — variabel lingkungan, untuk instalasi yang punya satu root
-   proyek tetap sehingga operator tidak menulis `--out` setiap kali
-3. current directory — default di mesin mana pun
-
-Tidak ada path statis di kode. `BITS_PROJECTS=/some/root` menggeser root `bits-sources`.
+Results go to `<cwd>/<slug>/`; `--out DIR` overrides. No static paths: the caller
+chooses the working folder. (Instalasi BITS memanggilnya dengan `--out /root/Projects`.)
+`BITS_PROJECTS=/some/root` menggeser root `bits-sources`.
 
 | Flag | Meaning |
 |---|---|

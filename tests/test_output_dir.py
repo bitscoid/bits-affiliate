@@ -1,7 +1,7 @@
-"""Folder induk hasil: --out menang, lalu BITS_AFFILIATE_OUT, lalu current directory.
+"""Folder induk hasil: --out kalau diberikan, kalau tidak current directory.
 
-Kunci perilaku portabel: tidak ada path statis di kode, tapi instalasi yang punya
-satu root proyek tetap bisa menetapkan lewat variabel lingkungan.
+Kunci perilaku portabel: tidak ada path statis di kode, dan tidak ada variabel
+lingkungan yang menyembunyikan folder kerja. Pemanggil yang menentukan.
 """
 
 import os
@@ -21,52 +21,40 @@ def cek(nama, syarat, detail=""):
 def main():
     lulus = total = 0
     asal = os.getcwd()
-    simpan = os.environ.get("BITS_AFFILIATE_OUT")
     try:
         with tempfile.TemporaryDirectory() as tmp:
             kerja = os.path.join(tmp, "kerja")
             os.makedirs(kerja)
             os.chdir(kerja)
 
-            os.environ.pop("BITS_AFFILIATE_OUT", None)
             total += 1
             lulus += cek(
-                "tanpa env & tanpa --out -> current directory",
+                "tanpa --out -> current directory",
                 os.path.realpath(pipeline._hasil_induk()) == os.path.realpath(kerja),
                 pipeline._hasil_induk(),
             )
-
-            root = os.path.join(tmp, "root-proyek")
-            os.environ["BITS_AFFILIATE_OUT"] = root
-            total += 1
-            lulus += cek(
-                "env BITS_AFFILIATE_OUT dipakai",
-                os.path.realpath(pipeline._hasil_induk()) == os.path.realpath(root),
-                pipeline._hasil_induk(),
-            )
-            total += 1
-            lulus += cek("folder dari env dibuat", os.path.isdir(root))
 
             lain = os.path.join(tmp, "lain")
             total += 1
             lulus += cek(
-                "--out menang atas env",
+                "--out dipakai kalau diberikan",
                 os.path.realpath(pipeline._hasil_induk(lain)) == os.path.realpath(lain),
                 pipeline._hasil_induk(lain),
             )
+            total += 1
+            lulus += cek("folder --out dibuat", os.path.isdir(lain))
 
-            os.environ.pop("BITS_AFFILIATE_OUT", None)
+            os.environ["BITS_AFFILIATE_OUT"] = "/tmp/tidak-boleh-dipakai"
             total += 1
             lulus += cek(
-                "env dihapus -> kembali ke current directory",
+                "variabel lingkungan tidak lagi mempengaruhi",
                 os.path.realpath(pipeline._hasil_induk()) == os.path.realpath(kerja),
+                pipeline._hasil_induk(),
             )
+            os.environ.pop("BITS_AFFILIATE_OUT", None)
     finally:
         os.chdir(asal)
-        if simpan is None:
-            os.environ.pop("BITS_AFFILIATE_OUT", None)
-        else:
-            os.environ["BITS_AFFILIATE_OUT"] = simpan
+        os.environ.pop("BITS_AFFILIATE_OUT", None)
 
     print(f"\n{lulus}/{total} lulus")
     return 0 if lulus == total else 1
