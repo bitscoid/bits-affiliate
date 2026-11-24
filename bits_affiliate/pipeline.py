@@ -101,13 +101,16 @@ def slugify(text):
 
 
 def _hasil_induk(out=None):
-    """Folder induk hasil video: --out, atau current directory.
+    """Folder induk hasil video. Urutan: `--out`, lalu env `BITS_AFFILIATE_OUT`,
+    lalu current directory.
 
-    Dinamis, tanpa path statis: hasil mengikuti tempat agent/operator
-    berdiri (konvensi CLI umum), jadi skill jalan di mesin mana pun.
-    Alur inbox BITS (bahan masuk & hasil keluar di satu root) tinggal
-    `cd <root-proyek>` dulu, atau `--out <root-proyek>`.
+    Dinamis, tanpa path statis: skill jalan di mesin mana pun. Di instalasi yang
+    punya satu root proyek tetap (mis. agent yang selalu bekerja di folder sama),
+    set `BITS_AFFILIATE_OUT` di environment supaya operator tidak perlu menulis
+    `--out` setiap kali; di mesin lain variabel itu tidak ada dan hasil mengikuti
+    current directory.
     """
+    out = out or os.environ.get("BITS_AFFILIATE_OUT")
     if out:
         os.makedirs(out, exist_ok=True)
         return out
