@@ -9,7 +9,8 @@ description: >
   Google Flow renders a 9:16 video. Use when the user says "pakai
   bits-affiliate", "buatkan video dengan bahan <path>", mentions product.jpg /
   model.jpg, or asks for the affiliate video skill. Outputs:
-  <out>/<slug>/STORYBOARD.jpeg, FLOW.md, <slug>.mp4, sumber.json, publish.txt.
+  <out>/<slug>/assets/STORYBOARD.jpeg, FLOW.md, output/<slug>.mp4,
+  output/publish.txt, sumber.json.
 metadata:
   hermes:
     tags: [video, affiliates, gemini, google-flow, omni, storyboard, cdp]
@@ -23,8 +24,8 @@ Product photo (+ optional model photo) → Gemini storyboard → Google Flow
 
 ```
 [0] PROBE   → account + duration (0 credits; 13 s preferred, 10 s fallback)
-[1] GEMINI  → STORYBOARD.jpeg + FLOW.md        (0 credits)
-[2] FLOW    → <slug>.mp4                       (9:16 Omni 1.2 720p x1)
+[1] GEMINI  → assets/STORYBOARD.jpeg + FLOW.md (0 credits)
+[2] FLOW    → output/<slug>.mp4                (9:16 Omni 1.2 720p x1)
 ```
 
 ## Install
@@ -70,13 +71,25 @@ by magic bytes and converted to JPEG when needed. Prompt templates live in
 
 ## Output
 
-`<out>/<slug>/`: `STORYBOARD.jpeg`, `FLOW.md`, `<slug>.mp4`, `sumber.json`,
-`publish.txt`.
+`<out>/<slug>/` — same shape as every other BITS film (see
+`/root/BITS/company/workflows/struktur-proyek-video.md`):
+
+```
+<slug>/
+  script.txt              narasi VO
+  assets/STORYBOARD.jpeg  storyboard dari Gemini
+  FLOW.md                 prompt Flow + catatan proses
+  output/<slug>.mp4       video jadi — satu-satunya tempat mp4
+  output/publish.txt      caption siap Buffer
+  sumber.json             bahan & metadata (khas affiliate)
+```
+
+Tidak ada `src/`, `renders/`, atau `out/` di folder hasil: pipeline membaca bahan
+langsung dari lokasinya, dan konversi berjalan di folder sementara.
 
 - `publish.txt` — Buffer-ready caption (header `# ` lines + `=== TikTok`,
   `=== Instagram Reels`, `=== YouTube Shorts` blocks), written automatically
-  on every exit. Description comes from the VO script (`vo/naskah.txt`, if
-  present), tags from the detected theme, never prices or "contact us" CTA.
+  on every exit. Description comes from `script.txt` (`vo/naskah.txt` pada proyek lama), tags from the detected theme, never prices or "contact us" CTA.
   `# STATUS` is honest: `BELUM-ADA-VIDEO` when the mp4 does not exist.
   Rewrite anytime: `bits-publish <slug> [--channel C] [--status S]`.
 - `sumber.json` — provenance written on every exit: `slug`, `waktu`, `berkas`,
@@ -166,7 +179,7 @@ Failure just retries the identical plain process — no plus-menu tools.
    INSIDE a tile container (the prompt-bar chip also uses `/asb/` — must not
    match). Watch for logout throughout.
 8. Tile ⋮ **More options** → **Download** → **720p Original size** (skip
-   paid 1080p/4K). Stable-size file is **moved** to `<slug>.mp4`.
+   paid 1080p/4K). Stable-size file is **moved** to `output/<slug>.mp4`.
 
 All page calls go through the reconnecting CDP wrapper (`r.call`): a dropped
 debugger socket retries the step, it never kills the run.
@@ -212,6 +225,14 @@ variants.
 
 - Headless is the default; `--vnc` only to watch a run. VNC credentials:
   `~/.config/bits-affiliate/vnc.passwd`.
+- Flow rejects prompts that enumerate removed garments or mention hijab removal
+  ("worn alone without any outer robe…", "remove the reference hijab") —
+  "This generation might violate our policies", refund, 15-min poll wasted.
+  Fix lives in `prompts.py` (`Flow prompt safety phrasing` bullet, product+model):
+  the Gemini template now forces positive-only wardrobe wording, no garment-removal
+  mentions, modest catalog framing, no "barefoot"/body-part camera wording.
+  If an old FLOW.md still trips it: edit the wording by hand, rerun with
+  `--skip-gemini` on a different `--account`.
 - Google's "We noticed some unusual activity" toast = bot detection on the
   CDP-driven session, NOT a real extension problem. It can force a Flow
   logout mid-render AFTER Mulai pembuatan was clicked — credits spent, no

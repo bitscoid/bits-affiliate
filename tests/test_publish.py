@@ -18,8 +18,8 @@ def _proyek(
     bahan="produk-parfum.jpg",
 ):
     d = os.path.join(tmp, slug)
-    os.makedirs(os.path.join(d, "vo"), exist_ok=True)
-    with open(os.path.join(d, "vo", "naskah.txt"), "w") as f:
+    os.makedirs(os.path.join(d, "output"), exist_ok=True)
+    with open(os.path.join(d, "script.txt"), "w") as f:
         f.write(naskah)
     with open(os.path.join(d, "sumber.json"), "w") as f:
         json.dump(
@@ -33,7 +33,7 @@ def _proyek(
             f,
         )
     if mp4:
-        with open(os.path.join(d, f"{slug}.mp4"), "wb") as f:
+        with open(os.path.join(d, "output", f"{slug}.mp4"), "wb") as f:
             f.write(b"\x00" * 1024)
     return d
 
@@ -72,7 +72,8 @@ def main():
         lulus += cek("PROYEK = nama folder", "# PROYEK : demo-parfum-13s" in teks)
         total += 1
         lulus += cek(
-            "VIDEO menunjuk mp4 proyek", "demo-parfum-13s/demo-parfum-13s.mp4" in teks
+            "VIDEO menunjuk mp4 di output/",
+            "demo-parfum-13s/output/demo-parfum-13s.mp4" in teks,
         )
 
         # 3. tema parfum -> tagar parfum, bukan umum
@@ -124,6 +125,17 @@ def main():
         t5 = open(publish.dari_proyek(d5)).read()
         total += 1
         lulus += cek("ada mp4 -> SIAP", "STATUS : SIAP" in t5)
+
+        # 8b. lokasi berkas sesuai struktur standar BITS
+        total += 1
+        lulus += cek(
+            "publish.txt ditulis ke output/",
+            os.path.exists(os.path.join(d, "output", "publish.txt")),
+        )
+        total += 1
+        lulus += cek(
+            "naskah dibaca dari script.txt", "Kenali wanginya" in teks
+        )
 
         # 9. deskripsi 30-45 kata (aturan caption BITS)
         d6 = _proyek(

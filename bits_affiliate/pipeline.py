@@ -16,8 +16,8 @@ Contoh:
       --title "nama-video" \
       --account you@example.com
 
-Hasil di <cwd>/<slug>/ (atau --out DIR): STORYBOARD.jpeg, FLOW.md,
-<slug>.mp4, sumber.json, publish.txt
+Hasil di <cwd>/<slug>/ (atau --out DIR): assets/STORYBOARD.jpeg, FLOW.md,
+output/<slug>.mp4, output/publish.txt, sumber.json
 """
 
 import argparse
@@ -226,6 +226,9 @@ def _jalankan():
             f"atau tambahkan --skip-gemini untuk melanjutkan tahap Flow"
         )
     os.makedirs(out_dir, exist_ok=True)
+    # Struktur standar BITS: video jadi dan publish.txt di output/, bahan di assets/.
+    os.makedirs(os.path.join(out_dir, "output"), exist_ok=True)
+    os.makedirs(os.path.join(out_dir, "assets"), exist_ok=True)
     # Catat bahan yang dipakai apa pun hasilnya (sukses, dry-run, SystemExit),
     # supaya `bersihkan` punya bukti dan tidak menghapus bahan yang masih
     # dibutuhkan proyek lain.
@@ -322,7 +325,7 @@ def _jalankan():
 
     kind, prompt = classify(product, model, args.seconds)
 
-    storyboard = os.path.join(out_dir, "STORYBOARD.jpeg")
+    storyboard = os.path.join(out_dir, "assets", "STORYBOARD.jpeg")
     flow_md = os.path.join(out_dir, "FLOW.md")
 
     print(f"akun    : {args.account}")
@@ -413,14 +416,14 @@ def _jalankan():
         print(f"folder  : diganti nama -> {out_dir}", flush=True)
         # summary masih menunjuk folder lama; perbarui supaya JSON akhir benar
         if g.get("storyboard", {}).get("path"):
-            g["storyboard"]["path"] = os.path.join(out_dir, "STORYBOARD.jpeg")
+            g["storyboard"]["path"] = os.path.join(out_dir, "assets", "STORYBOARD.jpeg")
         if g.get("flow_md"):
             g["flow_md"] = os.path.join(out_dir, "FLOW.md")
 
-    storyboard = os.path.join(out_dir, "STORYBOARD.jpeg")
+    storyboard = os.path.join(out_dir, "assets", "STORYBOARD.jpeg")
     flow_md = os.path.join(out_dir, "FLOW.md")
     # nama berkas dari slug (bukan judul mentah: bisa memuat "/" atau ":")
-    video = os.path.join(out_dir, f"{final_slug}.mp4")
+    video = os.path.join(out_dir, "output", f"{final_slug}.mp4")
     summary["dir"] = out_dir
 
     # ---- stage 2: pilih akun yang cukup kredit, auto-switch bila kurang

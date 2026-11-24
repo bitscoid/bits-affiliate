@@ -63,6 +63,12 @@ m13 = prompts.render_prompt("product+model", 13)
 ok("Wardrobe continuity lock" in m13, "model: wardrobe lock ada")
 ok("Muslimah product exception" in m13, "model: pengecualian Muslimah ada")
 ok("Wardrobe continuity lock" not in t13, "hanya-produk: tanpa aturan wardrobe")
+ok("Flow prompt safety phrasing" in m13, "model: aturan safety phrasing ada")
+ok(
+    "Flow prompt safety phrasing" not in t13,
+    "hanya-produk: tanpa aturan safety phrasing",
+)
+ok('never write "barefoot"' in m13, "model: larangan barefoot eksplisit")
 
 # ── jenis/durasi tak dikenal ditolak ───────────────────────────────────────
 for arg, pesan in (
