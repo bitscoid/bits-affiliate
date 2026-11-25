@@ -325,6 +325,10 @@ async def _ingredients_button_box(c):
 
 
 async def _upload(c, image_path):
+    # berkas hilang = upload diam-diam tidak terjadi, lalu chip tak pernah
+    # menempel dan SELURUH akun dicoba sia-sia. Gagal di sini, dengan sebab.
+    if not os.path.isfile(image_path):
+        raise FlowSetupError(f"storyboard tidak ada: {image_path}")
     await c.cmd("Page.setInterceptFileChooserDialog", enabled=True)
     box = await _ingredients_button_box(c)
     if not box:

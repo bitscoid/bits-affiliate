@@ -192,7 +192,8 @@ def dari_proyek(out_dir: str, channel: str = "BITS Style", detik=None,
         pass
     naskah = _baca(os.path.join(out_dir, "script.txt"))
     bahan = (sumber.get("berkas") or [None])[0] if sumber else None
-    produk = bahan or ""
+    # judul dari sumber.json menang atas nama berkas bahan
+    produk = (sumber.get("judul") if sumber else None) or bahan or ""
     out_video = os.path.join(out_dir, "output")
     nama_mp4 = f"{slug}.mp4"
     if not os.path.exists(os.path.join(out_video, nama_mp4)):

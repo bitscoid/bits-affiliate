@@ -425,6 +425,14 @@ def _jalankan():
     video = os.path.join(out_dir, "output", f"{final_slug}.mp4")
     summary["dir"] = out_dir
 
+    # Storyboard wajib ada sebelum Flow: mengunggah berkas yang tidak ada
+    # membuat chip tidak menempel, dan pipeline mencoba SEMUA akun sia-sia.
+    if not args.skip_flow and not os.path.isfile(storyboard):
+        raise SystemExit(
+            f"storyboard tidak ada: {storyboard} — jalankan tanpa --skip-gemini "
+            "atau taruh STORYBOARD.jpeg di assets/"
+        )
+
     # ---- stage 2: pilih akun yang cukup kredit, auto-switch bila kurang
     if args.skip_flow:
         summary["title"] = title
@@ -584,6 +592,10 @@ def catat_sumber(out_dir, args, kode=None):
     catatan = {
         "slug": os.path.basename(out_dir.rstrip("/")),
         "waktu": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        # judul yang diminta dipakai publish.txt: tanpa ini judul jatuh ke
+        # nama berkas bahan (mis. "doc_2de133..._Screenshot_...") dan caption
+        # jadi tidak layak tayang
+        "judul": getattr(args, "title", None) or None,
         "berkas": bahan,
         "perintah": " ".join(sys.argv),
         "exit": kode,

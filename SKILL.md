@@ -250,6 +250,17 @@ variants.
   "Add to prompt" menu item can be a no-op — click the asset tile instead.
 - Flow's UI follows the profile language: stable classes + ID/EN label alias
   tables; adding a language = adding aliases.
+- Storyboard must sit in `<proyek>/assets/STORYBOARD.jpeg`. Stage 1 used to
+  write it at the project root while stage 2 uploaded from `assets/`, so the
+  upload silently did nothing, `.asset-thumbnail` never appeared, and the
+  pipeline blamed the UI and tried ALL accounts ("aset tidak bisa ditempel ke
+  prompt", 6 accounts, 0 credits burned). Now `gemini_stage` writes to
+  `assets/` and both `pipeline` and `_upload` stop early with the real reason
+  when the file is missing.
+- Caption title: with no `script.txt` the title fell back to the raw source
+  filename (`doc_2de133…_Screenshot_….jpg`). The pipeline now records the
+  requested `--title` as `judul` in `sumber.json` and `publish.py` prefers it;
+  rebuild an existing project's caption with `bits-publish <slug>`.
 - Prompts sent to Flow must be English, even with Indonesian overlay text.
 
 ## File map

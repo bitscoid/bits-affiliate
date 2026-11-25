@@ -651,7 +651,11 @@ def run_stage(
         # (tanpa side-effect), jadi boleh diulang saat CDP putus di tengah
         await r.call(lambda c: _wait_reply(c, timeout=timeout), attempts=4)
 
-        shot = os.path.join(out_dir, "STORYBOARD.jpeg")
+        # storyboard tinggal di assets/ (struktur standar proyek video);
+        # pipeline mencari berkas di sana saat --skip-gemini, jadi jangan
+        # menaruhnya di akar proyek.
+        os.makedirs(os.path.join(out_dir, "assets"), exist_ok=True)
+        shot = os.path.join(out_dir, "assets", "STORYBOARD.jpeg")
         img = await r.call(lambda c: _grab_image(c, shot), attempts=3)
 
         flow_prompt = await r.call(lambda c: _grab_flow_prompt(c), attempts=3)
